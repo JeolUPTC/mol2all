@@ -5,16 +5,14 @@ import { gameEventBus } from '../bridge/gameEventBus'
 import type { GameQuestion } from '../services/questions.service'
 
 const WORLD_W = 2600
-const WORLD_H = 600
-const GROUND_Y = 572
+const DESIGN_H = 600   // reference height the layout was designed for
+const GROUND_Y = 572   // design-space ground Y
 const GOAL_X = 2200
 const GOAL_Y = 520
-// Chapel that encloses the flag — door locks until all questions answered
 const CHAPEL_LEFT  = 2148
 const CHAPEL_RIGHT = 2278
 const CHAPEL_TOP   = 434
 
-// Portals sit on top of platforms — player must jump to reach them
 const PORTAL_POSITIONS: { x: number; y: number }[] = [
   { x: 284, y: 394 },
   { x: 604, y: 354 },
@@ -39,7 +37,7 @@ const COINS: { x: number; y: number }[] = [
   { x: 840, y: 422 },
   { x: 1160, y: 358 }, { x: 1288, y: 358 },
   { x: 1880, y: 334 }, { x: 2008, y: 334 },
-  { x: 2136, y: 334 },  // was 2168,382 — now on top of platform-6 last tile
+  { x: 2136, y: 334 },
 ]
 
 interface LevelTheme {
@@ -86,9 +84,7 @@ export class PlayScene extends Phaser.Scene {
   private theme: LevelTheme = DEFAULT_THEME
 
   private portalCleared: boolean[] = []
-  // Pool of question indices not yet answered correctly
   private questionPool: number[] = []
-  // Question index currently assigned to each portal (null = unassigned)
   private portalQuestion: (number | null)[] = []
 
   private isQuizActive = false
@@ -119,12 +115,19 @@ export class PlayScene extends Phaser.Scene {
 
   private lastBombHitTime = 0
 
+  /** Vertical scale factor: actual screen height / design height (600). */
+  private sY = 1
+
   constructor() {
     super({ key: 'PlayScene' })
   }
 
+  /** Maps a design-space Y coordinate to actual screen Y. */
+  private sy(v: number): number {
+    return Math.round(v * this.sY)
+  }
+
   init(data: PlaySceneData) {
-    // Shuffle questions so pool order is random
     const qs = [...(data.questions ?? [])]
     for (let i = qs.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
@@ -137,7 +140,7 @@ export class PlayScene extends Phaser.Scene {
     this.theme     = TOPIC_THEMES[this.topic] ?? DEFAULT_THEME
 
     this.portalCleared  = new Array(PORTAL_POSITIONS.length).fill(false)
-    this.questionPool   = qs.map((_, i) => i)   // all indices available
+    this.questionPool   = qs.map((_, i) => i)
     this.portalQuestion = new Array(PORTAL_POSITIONS.length).fill(null)
 
     this.isQuizActive = false
@@ -159,8 +162,13 @@ export class PlayScene extends Phaser.Scene {
   }
 
   create() {
-    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H)
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H)
+    // Derive vertical scale from the actual viewport height vs the 600-unit design height.
+    // Capped at 1.8 to avoid over-stretching on very tall screens.
+    this.sY = Math.min(this.scale.height / DESIGN_H, 1.8)
+
+    const WH = this.scale.height
+    this.physics.world.setBounds(0, 0, WORLD_W, WH)
+    this.cameras.main.setBounds(0, 0, WORLD_W, WH)
 
     this.buildBackground()
     this.buildGround()
@@ -170,7 +178,7 @@ export class PlayScene extends Phaser.Scene {
     this.buildGoal()
     this.spawnParticles()
 
-    this.player = new Player(this, 80, 500)
+    this.player = new Player(this, 80, this.sy(500))
     this.cameras.main.startFollow(this.player.getSprite(), true, 0.12, 0.12)
     this.hud = new HUDSystem(this, this.levelName, this.questions.length, () => this.openTheory())
 
@@ -204,10 +212,10 @@ export class PlayScene extends Phaser.Scene {
     if (this.levelOrder >= 3) this.buildAcidRain()
     if (this.levelOrder >= 4) this.buildBombs()
     if (this.levelOrder >= 5) {
-      this.buildOneBouncer(360, 280, 215, -175)
+      this.buildOneBouncer(360, this.sy(280), 215, -175)
       if (this.levelOrder >= 6) {
-        this.buildOneBouncer(1100, 200, -255, 135)
-        this.buildOneBouncer(800, 350, 190, -215)
+        this.buildOneBouncer(1100, this.sy(200), -255, 135)
+        this.buildOneBouncer(800, this.sy(350), 190, -215)
       }
     }
   }
@@ -222,17 +230,18 @@ export class PlayScene extends Phaser.Scene {
   // ── World ──────────────────────────────────────────────────────────────────
 
   private buildBackground() {
-    this.add.tileSprite(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 'bg-tile').setDepth(0)
-    this.add.rectangle(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, this.theme.overlayColor, this.theme.overlayAlpha).setDepth(0.5)
+    const WH = this.scale.height
+    this.add.tileSprite(WORLD_W / 2, WH / 2, WORLD_W, WH, 'bg-tile').setDepth(0)
+    this.add.rectangle(WORLD_W / 2, WH / 2, WORLD_W, WH, this.theme.overlayColor, this.theme.overlayAlpha).setDepth(0.5)
     const g = this.add.graphics().setDepth(1)
     g.lineStyle(1, this.theme.gridColor, this.theme.gridAlpha)
-    for (let x = 0; x < WORLD_W; x += 240) g.lineBetween(x, 100, x + 200, 380)
+    for (let x = 0; x < WORLD_W; x += 240) g.lineBetween(x, this.sy(100), x + 200, this.sy(380))
   }
 
   private buildGround() {
     this.ground = this.physics.add.staticGroup()
     for (let i = 0; i < Math.ceil(WORLD_W / 128) + 1; i++) {
-      (this.ground.create(i * 128 + 64, GROUND_Y, 'platform') as Phaser.Physics.Arcade.Image).setDepth(3).refreshBody()
+      (this.ground.create(i * 128 + 64, this.sy(GROUND_Y), 'platform') as Phaser.Physics.Arcade.Image).setDepth(3).refreshBody()
     }
   }
 
@@ -240,7 +249,7 @@ export class PlayScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup()
     for (const pd of PLATFORMS) {
       for (let t = 0; t < pd.tiles; t++) {
-        (this.platforms.create(pd.x + t * 128, pd.y, 'platform') as Phaser.Physics.Arcade.Image).setDepth(3).refreshBody()
+        (this.platforms.create(pd.x + t * 128, this.sy(pd.y), 'platform') as Phaser.Physics.Arcade.Image).setDepth(3).refreshBody()
       }
     }
   }
@@ -248,10 +257,10 @@ export class PlayScene extends Phaser.Scene {
   private buildPortals() {
     this.portalGroup = this.physics.add.staticGroup()
     PORTAL_POSITIONS.forEach((pos, i) => {
-      const portal = this.portalGroup.create(pos.x, pos.y, 'portal-closed') as Phaser.Physics.Arcade.Image
+      const portal = this.portalGroup.create(pos.x, this.sy(pos.y), 'portal-closed') as Phaser.Physics.Arcade.Image
       portal.setData('index', i).setDepth(4).setSize(44, 100).refreshBody()
 
-      this.add.text(pos.x, pos.y - 70, '?', {
+      this.add.text(pos.x, this.sy(pos.y) - this.sy(70), '?', {
         fontFamily: 'Exo 2, system-ui', fontSize: '22px', color: '#c4b5fd', fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(5)
 
@@ -262,30 +271,31 @@ export class PlayScene extends Phaser.Scene {
   private buildCoins() {
     this.coins = this.physics.add.staticGroup()
     for (const cd of COINS) {
-      const coin = this.coins.create(cd.x, cd.y, 'coin') as Phaser.Physics.Arcade.Image
+      const sy = this.sy(cd.y)
+      const coin = this.coins.create(cd.x, sy, 'coin') as Phaser.Physics.Arcade.Image
       coin.setDepth(3).refreshBody()
-      this.tweens.add({ targets: coin, y: cd.y - 7, duration: 820 + Math.random() * 360, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
+      this.tweens.add({ targets: coin, y: sy - 7, duration: 820 + Math.random() * 360, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     }
   }
 
   private buildGoal() {
-    this.goal = this.physics.add.staticImage(GOAL_X, GOAL_Y, 'goal').setDepth(4)
+    this.goal = this.physics.add.staticImage(GOAL_X, this.sy(GOAL_Y), 'goal').setDepth(4)
     this.goal.setSize(24, 76).refreshBody()
     const g = this.add.graphics().setDepth(3)
     g.lineStyle(2, 0x10b981, 0.45)
-    g.strokeEllipse(GOAL_X, 558, 60, 14)
+    g.strokeEllipse(GOAL_X, this.sy(558), 60, 14)
   }
 
   private spawnParticles() {
     const color = this.theme.particleColor
     for (let i = 0; i < 30; i++) {
       const x = Phaser.Math.Between(0, WORLD_W)
-      const y = Phaser.Math.Between(40, 520)
+      const y = Phaser.Math.Between(this.sy(40), this.sy(520))
       const dot = this.add.circle(x, y, Phaser.Math.Between(2, 5), color, 0.16).setDepth(1)
       this.tweens.add({
-        targets: dot, y: y - Phaser.Math.Between(40, 90), alpha: 0,
+        targets: dot, y: y - Phaser.Math.Between(this.sy(40), this.sy(90)), alpha: 0,
         duration: Phaser.Math.Between(3500, 7200), repeat: -1, delay: Phaser.Math.Between(0, 4500),
-        onRepeat: () => { dot.setPosition(Phaser.Math.Between(0, WORLD_W), Phaser.Math.Between(320, 540)); dot.setAlpha(0.16) },
+        onRepeat: () => { dot.setPosition(Phaser.Math.Between(0, WORLD_W), Phaser.Math.Between(this.sy(320), this.sy(540))); dot.setAlpha(0.16) },
       })
     }
   }
@@ -295,12 +305,10 @@ export class PlayScene extends Phaser.Scene {
   private triggerPortal(portalIndex: number) {
     if (this.isQuizActive || this.portalCleared[portalIndex]) return
 
-    // Check if a question is already assigned to this portal
     let questionIndex = this.portalQuestion[portalIndex]
     const isNewAssignment = questionIndex === null
 
     if (questionIndex === null) {
-      // Pull a random question from the unanswered pool
       if (this.questionPool.length === 0) {
         this.clearPortalVisual(portalIndex)
         this.portalCleared[portalIndex] = true
@@ -327,7 +335,6 @@ export class PlayScene extends Phaser.Scene {
       }
 
       if (isNewAssignment) {
-        // Show roulette for fresh question assignment
         this.scene.launch('RouletteScene', {
           totalQuestions: this.questions.length,
           selectedNumber: qIdx + 1,
@@ -335,7 +342,6 @@ export class PlayScene extends Phaser.Scene {
           onAnswer,
         })
       } else {
-        // Retry — go straight to quiz
         this.scene.launch('QuizScene', { question, onAnswer })
       }
     })
@@ -353,7 +359,7 @@ export class PlayScene extends Phaser.Scene {
       this.score += pts
       this.clearPortalVisual(portalIndex)
       this.player.flashCorrect()
-      this.showBurst(PORTAL_POSITIONS[portalIndex].x, PORTAL_POSITIONS[portalIndex].y, pts)
+      this.showBurst(PORTAL_POSITIONS[portalIndex].x, this.sy(PORTAL_POSITIONS[portalIndex].y), pts)
       gameEventBus.emit('score:updated', { score: this.score })
       if (this.answeredCount >= this.questions.length) {
         this.openChapelDoor()
@@ -361,7 +367,6 @@ export class PlayScene extends Phaser.Scene {
         this.goalGateLockText.setText(`🔒\n${this.answeredCount}/${this.questions.length}`)
       }
     } else {
-      // Return question to pool — next portal touch picks a fresh random one
       this.questionPool.push(questionIndex)
       this.portalQuestion[portalIndex] = null
 
@@ -388,7 +393,6 @@ export class PlayScene extends Phaser.Scene {
   private handleGoalReach() {
     if (this.isQuizActive || this.goalReached) return
 
-    // Safety guard — physics gate should prevent this, but belt-and-suspenders
     const total = this.questions.length
     if (this.answeredCount < total) {
       const now = this.time.now
@@ -404,7 +408,7 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
-    this.goalReached = true   // guard — overlap fires every frame, only handle once
+    this.goalReached = true
 
     this.player.isControlEnabled = false
     this.player.getSprite().setVelocity(0, 0)
@@ -412,7 +416,6 @@ export class PlayScene extends Phaser.Scene {
     const stars = this.answeredCount >= total ? 3
       : this.answeredCount >= Math.ceil(total * 0.67) ? 2 : 1
 
-    // Fire immediately so React starts the API call during the camera animation
     gameEventBus.emit('level:complete', { score: this.score, stars, timeSpent: 0 })
 
     this.cameras.main.shake(220, 0.007)
@@ -470,74 +473,68 @@ export class PlayScene extends Phaser.Scene {
     this.tweens.add({ targets: txt, y: y - 72, alpha: 0, duration: 900, ease: 'Power2', onComplete: () => txt.destroy() })
   }
 
-  // ── Chapel — encloses the flag, door locked until all questions answered ────
+  // ── Chapel ────────────────────────────────────────────────────────────────
 
   private buildChapel() {
     if (this.questions.length === 0) return
 
-    // ── Permanent structure (roof, right wall, interior tint) ─────────────────
+    const WH  = this.scale.height
+    const ct  = this.sy(CHAPEL_TOP)
+    const gy  = this.sy(GROUND_Y)
+
     const walls = this.add.graphics().setDepth(3)
 
-    // Interior fill
     walls.fillStyle(0x0c1a2e, 0.75)
-    walls.fillRect(CHAPEL_LEFT + 10, CHAPEL_TOP + 10, CHAPEL_RIGHT - CHAPEL_LEFT - 10, GROUND_Y - CHAPEL_TOP - 10)
+    walls.fillRect(CHAPEL_LEFT + 10, ct + this.sy(10), CHAPEL_RIGHT - CHAPEL_LEFT - 10, gy - ct - this.sy(10))
 
-    // Roof bar
     walls.fillStyle(0x1e3a5f, 1)
-    walls.fillRect(CHAPEL_LEFT + 10, CHAPEL_TOP, CHAPEL_RIGHT - CHAPEL_LEFT - 10, 10)
+    walls.fillRect(CHAPEL_LEFT + 10, ct, CHAPEL_RIGHT - CHAPEL_LEFT - 10, this.sy(10))
     walls.lineStyle(2, 0x38bdf8, 0.9)
-    walls.lineBetween(CHAPEL_LEFT + 10, CHAPEL_TOP, CHAPEL_RIGHT, CHAPEL_TOP)
+    walls.lineBetween(CHAPEL_LEFT + 10, ct, CHAPEL_RIGHT, ct)
 
-    // Right wall
     walls.fillStyle(0x1e3a5f, 1)
-    walls.fillRect(CHAPEL_RIGHT - 10, CHAPEL_TOP, 10, GROUND_Y - CHAPEL_TOP)
+    walls.fillRect(CHAPEL_RIGHT - 10, ct, 10, gy - ct)
     walls.lineStyle(2, 0x38bdf8, 0.9)
-    walls.lineBetween(CHAPEL_RIGHT, CHAPEL_TOP, CHAPEL_RIGHT, GROUND_Y + 2)
+    walls.lineBetween(CHAPEL_RIGHT, ct, CHAPEL_RIGHT, gy + 2)
 
-    // Left wall stub above door arch
     walls.fillStyle(0x1e3a5f, 1)
-    walls.fillRect(CHAPEL_LEFT + 2, CHAPEL_TOP, 8, 52)
+    walls.fillRect(CHAPEL_LEFT + 2, ct, 8, this.sy(52))
     walls.lineStyle(2, 0x38bdf8, 0.9)
-    walls.lineBetween(CHAPEL_LEFT + 8, CHAPEL_TOP, CHAPEL_LEFT + 8, CHAPEL_TOP + 52)
+    walls.lineBetween(CHAPEL_LEFT + 8, ct, CHAPEL_LEFT + 8, ct + this.sy(52))
 
-    // Arch hint (semicircle over door)
     walls.lineStyle(2, 0x7dd3fc, 0.6)
     walls.beginPath()
-    walls.arc(CHAPEL_LEFT + 8, CHAPEL_TOP + 52, 24, Math.PI, 0, false)
+    walls.arc(CHAPEL_LEFT + 8, ct + this.sy(52), 24, Math.PI, 0, false)
     walls.strokePath()
 
-    // Chapel label
     this.add
-      .text((CHAPEL_LEFT + CHAPEL_RIGHT) / 2, CHAPEL_TOP - 16, '⚗  META', {
+      .text((CHAPEL_LEFT + CHAPEL_RIGHT) / 2, ct - this.sy(16), '⚗  META', {
         fontFamily: 'Exo 2, system-ui', fontSize: '13px', color: '#7dd3fc', fontStyle: 'bold',
       })
       .setOrigin(0.5).setDepth(4)
 
-    // Right wall physics (permanent — player can't leave the right side of the chapel)
-    const rightZone = this.add.zone(CHAPEL_RIGHT, WORLD_H / 2, 14, WORLD_H)
+    const rightZone = this.add.zone(CHAPEL_RIGHT, WH / 2, 14, WH)
     this.physics.add.existing(rightZone, true)
     this.physics.add.collider(this.player.getSprite(), rightZone)
 
-    // ── Door (locked until all questions answered) ────────────────────────────
     this.goalGateGfx = this.add.graphics().setDepth(4)
 
-    // Door glow layers
     this.goalGateGfx.lineStyle(20, 0xf59e0b, 0.12)
-    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, CHAPEL_TOP, CHAPEL_LEFT + 6, GROUND_Y)
+    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, ct, CHAPEL_LEFT + 6, gy)
     this.goalGateGfx.lineStyle(9, 0xf59e0b, 0.38)
-    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, CHAPEL_TOP, CHAPEL_LEFT + 6, GROUND_Y)
+    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, ct, CHAPEL_LEFT + 6, gy)
     this.goalGateGfx.lineStyle(3, 0xfcd34d, 1)
-    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, CHAPEL_TOP, CHAPEL_LEFT + 6, GROUND_Y)
-    for (let y = CHAPEL_TOP + 18; y < GROUND_Y; y += 40) {
+    this.goalGateGfx.lineBetween(CHAPEL_LEFT + 6, ct, CHAPEL_LEFT + 6, gy)
+    const stepY = this.sy(40)
+    for (let y = ct + this.sy(18); y < gy; y += stepY) {
       this.goalGateGfx.lineStyle(2, 0xfcd34d, 0.75)
       this.goalGateGfx.lineBetween(CHAPEL_LEFT - 2, y, CHAPEL_LEFT + 14, y)
     }
 
     this.tweens.add({ targets: this.goalGateGfx, alpha: 0.55, duration: 850, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
 
-    // Persistent progress counter to the left of the door
     this.goalGateLockText = this.add
-      .text(CHAPEL_LEFT - 10, (CHAPEL_TOP + GROUND_Y) / 2, `🔒\n0/${this.questions.length}`, {
+      .text(CHAPEL_LEFT - 10, (ct + gy) / 2, `🔒\n0/${this.questions.length}`, {
         fontFamily: 'Exo 2, system-ui',
         fontSize: '14px',
         color: '#fcd34d',
@@ -549,8 +546,7 @@ export class PlayScene extends Phaser.Scene {
       .setOrigin(1, 0.5)
       .setDepth(5)
 
-    // Door physics — Zone approach (reliably full-height, blocks entry when locked)
-    this.goalGateWall = this.add.zone(CHAPEL_LEFT, WORLD_H / 2, 16, WORLD_H)
+    this.goalGateWall = this.add.zone(CHAPEL_LEFT, WH / 2, 16, WH)
     this.physics.add.existing(this.goalGateWall, true)
 
     this.goalGateCollider = this.physics.add.collider(
@@ -563,7 +559,7 @@ export class PlayScene extends Phaser.Scene {
         this.lastGoalMsgTime = now
         const rem = this.questions.length - this.answeredCount
         this.showFloatingText(
-          CHAPEL_LEFT - 55, 465,
+          CHAPEL_LEFT - 55, this.sy(465),
           `🔒 ${rem} pregunta${rem > 1 ? 's' : ''} pendiente${rem > 1 ? 's' : ''}`,
           '#f59e0b',
         )
@@ -575,13 +571,11 @@ export class PlayScene extends Phaser.Scene {
     if (this.gateOpen || !this.goalGateGfx) return
     this.gateOpen = true
 
-    // Remove physics block
     this.goalGateCollider?.destroy()
     if (this.goalGateWall?.body) {
       (this.goalGateWall.body as Phaser.Physics.Arcade.StaticBody).enable = false
     }
 
-    // Animate door dissolving
     this.tweens.add({
       targets: [this.goalGateGfx, this.goalGateLockText],
       alpha: 0,
@@ -593,36 +587,34 @@ export class PlayScene extends Phaser.Scene {
       },
     })
 
-    this.showFloatingText(CHAPEL_LEFT + 64, 480, '¡Camino libre! ✓', '#10b981')
+    this.showFloatingText(CHAPEL_LEFT + 64, this.sy(480), '¡Camino libre! ✓', '#10b981')
   }
 
-  // ── Hazard floor — discourages ground bypass between platforms ────────────
+  // ── Hazard floor ──────────────────────────────────────────────────────────
 
   private buildHazardFloor() {
     const gfx = this.add.graphics().setDepth(2)
     const START_X = 400, END_X = 2100
+    const y558 = this.sy(558)
+    const y572 = this.sy(572)
+    const h = y572 - y558 || 14
 
-    // Subtle red tint strip at ground level
     gfx.fillStyle(0xef4444, 0.13)
-    gfx.fillRect(START_X, 558, END_X - START_X, 14)
+    gfx.fillRect(START_X, y558, END_X - START_X, h)
 
-    // Diagonal warning chevrons
     for (let x = START_X; x < END_X; x += 30) {
       gfx.lineStyle(2, 0xef4444, 0.25)
-      gfx.lineBetween(x, 558, x + 14, 572)
+      gfx.lineBetween(x, y558, x + 14, y572)
     }
 
-    // Warning labels at zone entrances
     for (const lx of [420, 960, 1540]) {
-      this.add.text(lx, 549, '⚠', {
+      this.add.text(lx, y558 - 9, '⚠', {
         fontFamily: 'system-ui', fontSize: '11px', color: '#ef4444',
       }).setDepth(3)
     }
   }
 
-  // ── Enemies — walking hazard molecules, one new enemy per level ─────────
-  // Platform tile is 24 px tall (top surface = platformY − 12).
-  // Enemy texture is 36 px tall (half = 18). Center y = platformY − 30.
+  // ── Enemies ───────────────────────────────────────────────────────────────
 
   private buildEnemies() {
     this.enemyGroup = this.physics.add.staticGroup()
@@ -630,20 +622,15 @@ export class PlayScene extends Phaser.Scene {
     type EnemyDef = { x: number; y: number; range: number; speed: number }
     const byLevel: Record<number, EnemyDef[]> = {
       1: [],
-      // Level 2: 1 fast molecule — noticeably harder than nothing
       2: [{ x: 284, y: 426, range: 72, speed: 80 }],
-      // Level 3: 2 molecules + acid rain (handled separately)
       3: [{ x: 284, y: 426, range: 64, speed: 90 },
           { x: 604, y: 386, range: 64, speed: 100 }],
-      // Level 4: 3 molecules + timed bombs
       4: [{ x: 284, y: 426, range: 64, speed: 95 },
           { x: 604, y: 386, range: 64, speed: 105 },
           { x: 904, y: 426, range: 64, speed: 115 }],
-      // Level 5: 3 faster molecules + bouncer
       5: [{ x: 284, y: 426, range: 72, speed: 110 },
           { x: 604, y: 386, range: 72, speed: 120 },
           { x: 1224, y: 362, range: 72, speed: 130 }],
-      // Level 6: 4 max-speed molecules + acid rain + bombs + 3 bouncers
       6: [{ x: 284, y: 426, range: 72, speed: 125 },
           { x: 604, y: 386, range: 72, speed: 135 },
           { x: 904, y: 426, range: 72, speed: 145 },
@@ -668,7 +655,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     for (const def of defs) {
-      const e = this.enemyGroup.create(def.x, def.y, texKey) as Phaser.Physics.Arcade.Image
+      const e = this.enemyGroup.create(def.x, this.sy(def.y), texKey) as Phaser.Physics.Arcade.Image
       e.setDepth(4).refreshBody()
       const duration = Math.round((def.range * 2 / def.speed) * 1000)
       this.tweens.add({
@@ -688,7 +675,7 @@ export class PlayScene extends Phaser.Scene {
   private handleEnemyHit() {
     if (this.isQuizActive || this.goalReached) return
     const now = this.time.now
-    if (now - this.lastEnemyHitTime < 1800) return   // cooldown
+    if (now - this.lastEnemyHitTime < 1800) return
     this.lastEnemyHitTime = now
 
     this.lives = Math.max(0, this.lives - 1)
@@ -711,7 +698,7 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
-  // ── Acid rain — diagonal drops with landing shadows (L3, L6 heavier) ──────
+  // ── Acid rain ─────────────────────────────────────────────────────────────
 
   private buildAcidRain() {
     const texKey = 'acid-drop'
@@ -754,21 +741,18 @@ export class PlayScene extends Phaser.Scene {
   private spawnRainWave() {
     if (this.isQuizActive || this.goalReached || !this.rainDropGroup) return
     const count = this.levelOrder >= 6 ? 5 : 3
+    const groundY = this.sy(GROUND_Y)
     for (let i = 0; i < count; i++) {
       const spawnX = Phaser.Math.Between(350, 2050)
-      // Diagonal: random x-velocity component gives varying angles
       const vx = Phaser.Math.Between(-110, 110)
       const vy = Phaser.Math.Between(240, 310)
-      // Project landing x so the player can anticipate where to dodge
-      const tFall = (GROUND_Y + 20) / vy   // rough time-to-ground
+      const tFall = (groundY + 20) / vy
       const landX = Phaser.Math.Clamp(spawnX + vx * tFall, 40, WORLD_W - 40)
-      // Landing shadow on ground (visible before drop appears)
       const shadow = this.add
-        .ellipse(landX, GROUND_Y - 3, 22, 10, 0x84cc16, 0.35)
+        .ellipse(landX, groundY - 3, 22, 10, 0x84cc16, 0.35)
         .setDepth(2)
-      // Warning icon near spawn column
       const warn = this.add
-        .text(spawnX, 32, '☣', { fontFamily: 'system-ui', fontSize: '15px', color: '#84cc16' })
+        .text(spawnX, this.sy(32), '☣', { fontFamily: 'system-ui', fontSize: '15px', color: '#84cc16' })
         .setDepth(8).setOrigin(0.5)
       this.time.delayedCall(650, () => {
         warn.destroy()
@@ -801,7 +785,7 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
-  // ── Timed bombs — Level 4 and Level 6 ────────────────────────────────────
+  // ── Timed bombs ───────────────────────────────────────────────────────────
 
   private buildBombs() {
     const texKey = 'bomb-hazard'
@@ -819,11 +803,8 @@ export class PlayScene extends Phaser.Scene {
       g.destroy()
     }
 
-    // Bomb A: left side of platform 3, 78 px clear of portal 3 (x=904)
-    // Bomb B: right side of platform 5, 70 px clear of portal 5 (x=1524)
-    // by = pd.y so the bomb ball rests exactly on the platform surface
     for (const pos of [{ x: 800, y: 456 }, { x: 1620, y: 432 }]) {
-      this.time.delayedCall(Phaser.Math.Between(3000, 6500), () => this.triggerBomb(pos.x, pos.y))
+      this.time.delayedCall(Phaser.Math.Between(3000, 6500), () => this.triggerBomb(pos.x, this.sy(pos.y)))
     }
   }
 
@@ -839,7 +820,7 @@ export class PlayScene extends Phaser.Scene {
       alpha: 0.25,
       duration: 220,
       yoyo: true,
-      repeat: 7,   // ~3.5 s warning
+      repeat: 7,
       onComplete: () => {
         bomb.destroy()
         warn.destroy()
@@ -890,7 +871,7 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
-  // ── Bouncing molecules — Level 5+ (multiple instances) ────────────────────
+  // ── Bouncing molecules ────────────────────────────────────────────────────
 
   private buildOneBouncer(sx: number, sy: number, vx: number, vy: number) {
     const texKey = 'mol-bouncer'
@@ -924,7 +905,6 @@ export class PlayScene extends Phaser.Scene {
     for (const b of this.bouncers) {
       if (!b.active || !b.body) continue
       const body = b.body as Phaser.Physics.Arcade.Body
-      // Renormalize if energy bleeds due to corner collisions
       if (body.speed < 90) {
         const target = 210
         const s = body.speed || 1
@@ -961,7 +941,7 @@ export class PlayScene extends Phaser.Scene {
   private checkHazardFloor() {
     if (this.isQuizActive || this.goalReached) return
     const sprite = this.player.getSprite()
-    if (sprite.y > 548 && sprite.x > 400 && sprite.x < 2100) {
+    if (sprite.y > this.sy(548) && sprite.x > 400 && sprite.x < 2100) {
       const now = this.time.now
       if (now - this.lastHazardTime > 2200) {
         this.lastHazardTime = now

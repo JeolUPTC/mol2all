@@ -91,8 +91,8 @@ export function StudentDashboard() {
       </div>
 
       <div className="mb-6">
-        <h2 className="font-display text-xl font-semibold text-slate-200">Niveles</h2>
-        <p className="text-sm text-slate-400">Completa cada nivel para desbloquear el siguiente</p>
+        <h2 className="font-display text-2xl font-semibold text-slate-200">Niveles</h2>
+        <p className="text-base text-slate-400">Completa cada nivel para desbloquear el siguiente</p>
       </div>
 
       {isLoading ? (

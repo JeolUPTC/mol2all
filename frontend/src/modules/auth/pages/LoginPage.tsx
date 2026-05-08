@@ -27,7 +27,7 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-400">
+              <label className="mb-1 block text-base font-medium text-slate-400">
                 Correo electrónico
               </label>
               <input
@@ -43,10 +43,10 @@ export function LoginPage() {
 
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-400">Contraseña</label>
+                <label className="text-base font-medium text-slate-400">Contraseña</label>
                 <Link
                   to="/auth/forgot-password"
-                  className="text-xs text-brand-400 hover:text-brand-300"
+                  className="text-sm text-brand-400 hover:text-brand-300"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
@@ -71,7 +71,7 @@ export function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-4 text-center text-xs text-slate-500">
+          <p className="mt-4 text-center text-sm text-slate-500">
             Tu cuenta es creada por el administrador o tu docente.
           </p>
         </div>

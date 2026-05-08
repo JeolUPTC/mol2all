@@ -13,12 +13,12 @@ import { PeriodicTableScene } from '../scenes/PeriodicTableScene'
 export const createPhaserConfig = (parent: string): Phaser.Types.Core.GameConfig => ({
   type: Phaser.AUTO,
   parent,
-  width: 800,
-  height: 600,
   backgroundColor: '#0f172a',
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: '100%',
+    height: '100%',
   },
   physics: {
     default: 'arcade',

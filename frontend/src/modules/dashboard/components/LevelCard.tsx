@@ -29,16 +29,16 @@ export function LevelCard({ level, onPlay }: LevelCardProps) {
     >
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="text-sm font-medium uppercase tracking-wide text-slate-500">
             Nivel {level.order}
           </span>
-          <h3 className="font-display text-lg font-semibold text-slate-100">{level.name}</h3>
+          <h3 className="font-display text-xl font-semibold text-slate-100">{level.name}</h3>
         </div>
         {isLocked && <span className="text-2xl">🔒</span>}
         {isCompleted && <span className="text-2xl">✅</span>}
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+      <div className="flex items-center gap-2 text-sm text-slate-400">
         <span className="rounded bg-slate-700 px-2 py-0.5">
           {TOPIC_LABELS[level.topic] ?? level.topic}
         </span>
@@ -54,13 +54,13 @@ export function LevelCard({ level, onPlay }: LevelCardProps) {
           </span>
         ))}
         {level.progress?.highScore ? (
-          <span className="ml-auto text-xs text-slate-400">
+          <span className="ml-auto text-sm text-slate-400">
             Mejor: {level.progress.highScore} pts
           </span>
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-sm text-slate-400">
         <span className="text-game-xp font-medium">+{level.xpReward} XP</span>
         <span className="text-game-coins font-medium">+{level.coinsReward} 🪙</span>
       </div>

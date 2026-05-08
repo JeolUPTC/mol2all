@@ -6,11 +6,14 @@ export class HUDSystem {
   private questionText: Phaser.GameObjects.Text
   private energyBarFill: Phaser.GameObjects.Rectangle
   private progressBarFill: Phaser.GameObjects.Rectangle
+  private barW = 230
 
   constructor(scene: Phaser.Scene, levelName: string, totalQuestions: number, onTheory?: () => void) {
     const W = scene.cameras.main.width
     const H = 72          // strip height
     const MID = H / 2     // = 36
+    this.barW = Math.min(230, Math.round(W * 0.38))
+    const barW = this.barW
 
     // ── Background strip ──────────────────────────────────────────────────
     scene.add
@@ -72,7 +75,7 @@ export class HUDSystem {
     // ── Theory button ─────────────────────────────────────────────────────
     if (onTheory) {
       const theoryBtn = scene.add
-        .text(W / 2 - 140, MID, '📖 Teoría', {
+        .text(W / 2 - barW / 2 - 10, MID, '📖 Teoría', {
           fontFamily: 'Exo 2, system-ui',
           fontSize: '14px',
           color: '#38bdf8',
@@ -91,7 +94,6 @@ export class HUDSystem {
 
     // ── CENTER: bars ──────────────────────────────────────────────────────
     const cx = W / 2
-    const barW = 230
     const barH = 13
 
     // Progress row
@@ -145,10 +147,10 @@ export class HUDSystem {
     this.questionText.setText(`${answered}/${total}`)
 
     const progressPct = total > 0 ? answered / total : 0
-    this.progressBarFill.width = Math.max(0, 230 * progressPct)
+    this.progressBarFill.width = Math.max(0, this.barW * progressPct)
 
     const energyPct = Math.max(0, Math.min(1, energy / 100))
-    this.energyBarFill.width = Math.max(0, 230 * energyPct)
+    this.energyBarFill.width = Math.max(0, this.barW * energyPct)
 
     const energyColor = energyPct > 0.6 ? 0xf59e0b : energyPct > 0.3 ? 0xf97316 : 0xef4444
     this.energyBarFill.setFillStyle(energyColor)
