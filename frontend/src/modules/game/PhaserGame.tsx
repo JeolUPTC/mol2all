@@ -4,6 +4,7 @@ import { useGameStore } from '@stores/gameStore'
 import { gameEventBus } from './bridge/gameEventBus'
 import { createPhaserConfig } from './config/phaser.config'
 import type { LevelTopic } from '@core/types/game.types'
+import type { GameQuestion } from './services/questions.service'
 
 const CONTAINER_ID = 'mol2all-phaser-container'
 
@@ -13,6 +14,7 @@ export interface LevelConfig {
   levelName: string
   totalQuestions: number
   levelOrder: number
+  questions?: GameQuestion[]
 }
 
 interface PhaserGameProps {
@@ -58,11 +60,17 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
   }, [onComplete])
 
   useEffect(() => {
-    const game = new Phaser.Game(createPhaserConfig(CONTAINER_ID))
-
-    if (levelConfig) {
-      game.registry.set('levelConfig', levelConfig)
-    }
+    const game = new Phaser.Game({
+      ...createPhaserConfig(CONTAINER_ID),
+      callbacks: {
+        preBoot: (g: Phaser.Game) => {
+          if (levelConfig) {
+            g.registry.set('levelConfig', levelConfig)
+            g.registry.set('preloadedQuestions', levelConfig.questions ?? [])
+          }
+        },
+      },
+    })
 
     const unsubScore = gameEventBus.on('score:updated', ({ score }) => updateScore(score))
     const unsubLives = gameEventBus.on('life:lost', ({ livesRemaining }) => updateLives(livesRemaining))

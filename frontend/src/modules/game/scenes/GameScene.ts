@@ -38,6 +38,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   async create() {
+    // If questions were pre-loaded by React (PreGameScreen), skip straight to PlayScene.
+    const preloaded: GameQuestion[] = this.game.registry.get('preloadedQuestions') ?? []
+    if (preloaded.length > 0) {
+      this.scene.start('PlayScene', {
+        questions: preloaded,
+        levelName: this.levelName,
+        topic: this.topic,
+        difficulty: this.difficulty,
+        levelOrder: this.levelOrder,
+      })
+      return
+    }
+
+    // Fallback: load questions here (e.g. direct URL access without pre-game screen)
     const { width, height } = this.cameras.main
     this.add.rectangle(width / 2, height / 2, width, height, 0x060f1e)
 
