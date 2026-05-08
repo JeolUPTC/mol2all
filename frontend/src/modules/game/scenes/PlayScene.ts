@@ -439,14 +439,6 @@ export class PlayScene extends Phaser.Scene {
     })
   }
 
-  private openTheory() {
-    if (this.isQuizActive) return
-    this.scene.pause('PlayScene')
-    this.scene.launch('TheoryScene', {
-      topic: this.topic,
-      onClose: () => this.scene.resume('PlayScene'),
-    })
-  }
 
   private buildLevelConfig(): ResultConfig {
     return { topic: this.topic, difficulty: this.difficulty, levelName: this.levelName, totalQuestions: this.questions.length }
