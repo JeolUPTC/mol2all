@@ -10,6 +10,14 @@ interface GameSceneData {
   levelOrder?: number
 }
 
+const TOPIC_LABEL: Record<string, string> = {
+  molar_mass: 'Masa Molar',
+  balancing: 'Balanceo de Ecuaciones',
+  stoichiometry: 'Estequiometría',
+  limiting_reagent: 'Reactivo Límite',
+  yield: 'Rendimiento',
+}
+
 export class GameScene extends Phaser.Scene {
   private topic: LevelTopic = 'molar_mass'
   private difficulty: 1 | 2 | 3 = 1
@@ -31,88 +39,162 @@ export class GameScene extends Phaser.Scene {
 
   async create() {
     const { width, height } = this.cameras.main
-    const cx = width / 2
 
-    this.add.rectangle(cx, height / 2, width, height, 0x0f172a)
+    // Full background
+    this.add.rectangle(width / 2, height / 2, width, height, 0x060f1e)
 
-    // Use mobile (single-column) layout for narrow or short screens
-    const isMobile = width < 720 || height < 420
+    const isMobile = width < 720 || height < 380
     if (isMobile) {
-      await this.createMobileLayout(width, height, cx)
+      await this.layoutMobile(width, height)
     } else {
-      await this.createDesktopLayout(width, height)
+      await this.layoutDesktop(width, height)
     }
   }
 
-  // ── Mobile: single-column ─────────────────────────────────────────────────
+  // ── DESKTOP: two-panel layout ─────────────────────────────────────────────
 
-  private async createMobileLayout(width: number, height: number, cx: number) {
-    const th = THEORY[this.topic] ?? DEFAULT_THEORY
-    const pad = 16
+  private async layoutDesktop(W: number, H: number) {
+    const theory = THEORY[this.topic] ?? DEFAULT_THEORY
 
-    // Level name strip — top 22% of height
-    const titleH = Math.max(72, Math.round(height * 0.22))
-    const titleY = titleH / 2
-    this.add.rectangle(cx, titleY, width, titleH, 0x0a1628).setStrokeStyle(1, 0x0ea5e9, 0.7)
+    // ── LEFT: theory sidebar (28% of width, full height) ──────────────────
+    const cardW = Math.min(420, Math.round(W * 0.28))
+    const cardH = H - 2
+    const cardX = cardW / 2 + 1
+    const cardY = H / 2
 
-    const nameFontSize = Math.round(Math.min(36, Math.max(24, height * 0.07)))
-    this.add.text(cx, titleY - 10, this.levelName, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: `${nameFontSize}px`,
-      color: '#f0f9ff',
-      fontStyle: 'bold',
-      wordWrap: { width: width - 32 },
+    // Card background + border
+    this.add.rectangle(cardX, cardY, cardW, cardH, 0x080f1e).setStrokeStyle(2, 0x0ea5e9, 0.9)
+
+    // Subtle inner top accent strip
+    this.add.rectangle(cardX, 3, cardW, 4, 0x0ea5e9, 0.7)
+
+    const tPad = 24
+    const textW = cardW - tPad * 2
+    // Start at y=64 to clear the React ← Salir button overlay
+    let y = 64
+
+    // Title
+    this.add.text(cardX, y, `📖  ${theory.title}`, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '22px',
+      color: '#38bdf8', fontStyle: 'bold',
+      wordWrap: { width: textW }, align: 'center',
+    }).setOrigin(0.5, 0)
+    y += 40
+
+    // Subtitle chip
+    const subChip = this.add.text(cardX, y, theory.subtitle, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '13px',
+      color: '#64748b', wordWrap: { width: textW }, align: 'center',
+    }).setOrigin(0.5, 0)
+    y += subChip.height + 18
+
+    // Divider
+    this.drawDivider(cardX - textW / 2, y, textW)
+    y += 12
+
+    // Concept (max 3 lines to save space)
+    const conceptText = this.add.text(cardX, y, theory.concept, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '15px',
+      color: '#94a3b8', wordWrap: { width: textW }, lineSpacing: 5,
       align: 'center',
-      shadow: { offsetX: 0, offsetY: 0, color: '#38bdf8', blur: 8, fill: true },
-    }).setOrigin(0.5)
-    this.add.text(cx, titleY + nameFontSize / 2 + 2, th.subtitle, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '15px',
-      color: '#64748b',
-      wordWrap: { width: width - 32 },
-      align: 'center',
+    }).setOrigin(0.5, 0)
+    y += Math.min(conceptText.height, 90) + 16
+
+    // Formula box — most prominent element on left
+    const fBoxH = 88
+    this.add.rectangle(cardX, y + fBoxH / 2, cardW - 24, fBoxH, 0x0c2233).setStrokeStyle(2, 0x0ea5e9)
+    this.add.text(cardX, y + 14, theory.formula, {
+      fontFamily: 'JetBrains Mono, monospace', fontSize: '19px',
+      color: '#7dd3fc', fontStyle: 'bold',
+      wordWrap: { width: textW - 8 }, align: 'center',
+    }).setOrigin(0.5, 0)
+    this.add.text(cardX, y + fBoxH - 20, theory.formulaLabel, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '13px', color: '#334155',
+    }).setOrigin(0.5, 0)
+    y += fBoxH + 14
+
+    // Example
+    this.add.text(cardX, y, `💡  ${theory.example}`, {
+      fontFamily: 'JetBrains Mono, monospace', fontSize: '14px',
+      color: '#fde68a', wordWrap: { width: textW }, align: 'center',
+    }).setOrigin(0.5, 0)
+    y += 46
+
+    // Divider
+    this.drawDivider(cardX - textW / 2, y, textW)
+    y += 12
+
+    // Key steps
+    this.add.text(cardX, y, '✦  Pasos clave', {
+      fontFamily: 'Exo 2, system-ui', fontSize: '14px',
+      color: '#10b981', fontStyle: 'bold', align: 'center',
+    }).setOrigin(0.5, 0)
+    y += 24
+
+    theory.tips.forEach((tip, i) => {
+      this.add.text(cardX - textW / 2, y, `${i + 1}.`, {
+        fontFamily: 'Exo 2, system-ui', fontSize: '14px', color: '#38bdf8', fontStyle: 'bold',
+      })
+      this.add.text(cardX - textW / 2 + 22, y, tip, {
+        fontFamily: 'Exo 2, system-ui', fontSize: '14px',
+        color: '#94a3b8', wordWrap: { width: textW - 22 },
+      })
+      y += 26
+    })
+
+    // ── RIGHT: level briefing (remaining 72%) ────────────────────────────
+    const rStart = cardW + 2
+    const rW = W - rStart
+    const rCx = rStart + rW / 2
+
+    // Subtle vertical separator
+    this.add.rectangle(rStart, H / 2, 1, H, 0x1e3a5f, 0.8)
+
+    // ── SECTION A: Level identity (top 40% of height) ────────────────────
+    const sectionAH = Math.round(H * 0.40)
+
+    // Background tint for section A
+    this.add.rectangle(rCx, sectionAH / 2, rW, sectionAH, 0x0a1628, 0.7)
+    this.add.rectangle(rCx, sectionAH, rW, 2, 0x0ea5e9, 0.3)
+
+    // Level name — dominant text, scales with available height
+    const nameFontSize = Math.round(Math.min(64, H * 0.083))
+    this.add.text(rCx, sectionAH * 0.28, this.levelName, {
+      fontFamily: 'Exo 2, system-ui', fontSize: `${nameFontSize}px`,
+      color: '#f1f9ff', fontStyle: 'bold',
+      wordWrap: { width: rW - 48 }, align: 'center',
+      shadow: { offsetX: 0, offsetY: 0, color: '#38bdf8', blur: 18, fill: true },
+    }).setOrigin(0.5, 0.5)
+
+    // Topic chip + difficulty stars
+    const topicLabel = TOPIC_LABEL[this.topic] ?? this.topic
+    const diffStars = '★'.repeat(this.difficulty) + '☆'.repeat(3 - this.difficulty)
+    this.add.text(rCx, sectionAH * 0.72, `${topicLabel}   ${diffStars}`, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '20px',
+      color: '#64748b', fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5)
+
+    // ── SECTION B: Loading status (middle 20%) ───────────────────────────
+    const sectionBTop = sectionAH
+    const sectionBH = Math.round(H * 0.20)
+    const sectionBCy = sectionBTop + sectionBH / 2
+
+    const loadingText = this.add.text(rCx, sectionBCy - 12, 'Generando preguntas...', {
+      fontFamily: 'Exo 2, system-ui', fontSize: '22px', color: '#64748b',
     }).setOrigin(0.5)
 
-    // Formula card — occupies next 28% of height
-    const fCardTop = titleH + pad
-    const fCardH = Math.max(70, Math.round(height * 0.28))
-    const fCardY = fCardTop + fCardH / 2
-    this.add.rectangle(cx, fCardY, width - pad * 2, fCardH, 0x0c2233).setStrokeStyle(2, 0x0ea5e9)
-    this.add.text(cx, fCardY - fCardH * 0.18, th.formula, {
-      fontFamily: 'JetBrains Mono, monospace',
-      fontSize: '18px',
-      color: '#7dd3fc',
-      fontStyle: 'bold',
-      wordWrap: { width: width - pad * 2 - 20 },
-      align: 'center',
-    }).setOrigin(0.5)
-    this.add.text(cx, fCardY + fCardH * 0.22, th.formulaLabel, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '14px',
-      color: '#475569',
-    }).setOrigin(0.5)
-
-    // Status / loading — middle band
-    const statusY = fCardTop + fCardH + pad * 2
-    const loadingText = this.add.text(cx, statusY, 'Generando preguntas...', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '17px',
-      color: '#94a3b8',
-    }).setOrigin(0.5)
-
-    const spinnerY = statusY + 36
+    // Animated dots indicator
+    const spinR = 10
+    const spinY = sectionBCy + 22
     const spinner = this.add.graphics()
     this.tweens.add({
-      targets: { angle: 0 },
-      angle: 360,
-      duration: 900,
-      repeat: -1,
-      onUpdate: (tween) => {
-        const a = (tween.targets[0] as { angle: number }).angle
+      targets: { a: 0 }, a: 360, duration: 900, repeat: -1,
+      onUpdate: (tw) => {
+        const a = (tw.targets[0] as { a: number }).a
         spinner.clear()
         spinner.lineStyle(3, 0x0ea5e9, 1)
         spinner.beginPath()
-        spinner.arc(cx, spinnerY, 14, Phaser.Math.DegToRad(a), Phaser.Math.DegToRad(a + 260))
+        spinner.arc(rCx, spinY, spinR, Phaser.Math.DegToRad(a), Phaser.Math.DegToRad(a + 260))
         spinner.strokePath()
       },
     })
@@ -120,38 +202,151 @@ export class GameScene extends Phaser.Scene {
     let questions: GameQuestion[] = []
     let dots = ''
     const dotTimer = this.time.addEvent({
-      delay: 380,
-      callback: () => {
-        dots = dots.length < 3 ? dots + '.' : ''
-        loadingText.setText(`Generando preguntas${dots}`)
-      },
+      delay: 350,
+      callback: () => { dots = dots.length < 3 ? dots + '.' : ''; loadingText.setText(`Generando preguntas${dots}`) },
       repeat: -1,
     })
 
     try {
-      if (this.topic === 'mixed') {
-        questions = await questionsService.generateMixed(this.totalQuestions)
-      } else {
-        questions = await questionsService.generateBatch(this.topic, this.difficulty, this.totalQuestions)
-      }
-    } catch { /* PlayScene handles empty array */ }
+      questions = this.topic === 'mixed'
+        ? await questionsService.generateMixed(this.totalQuestions)
+        : await questionsService.generateBatch(this.topic, this.difficulty, this.totalQuestions)
+    } catch { /* PlayScene handles empty */ }
 
     dotTimer.destroy()
     spinner.clear()
-    loadingText.setText('¡Preguntas listas!')
-    loadingText.setStyle({ color: '#10b981' })
 
-    // Play button — anchored to bottom
-    const btnH = Math.max(52, Math.round(height * 0.13))
-    const btnW = width - pad * 2
-    const btnY = height - pad - btnH / 2
-    const btnBtnFontSize = Math.round(Math.min(32, btnH * 0.48))
-    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, 0x0284c7).setInteractive({ useHandCursor: true })
-    this.add.text(cx, btnY, '▶  ¡Jugar!', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: `${btnBtnFontSize}px`,
-      color: '#ffffff',
-      fontStyle: 'bold',
+    loadingText.setText('✓  Preguntas listas')
+    loadingText.setStyle({ color: '#10b981', fontSize: '24px' })
+
+    // ── SECTION C: Action area (bottom 40%) ─────────────────────────────
+    const sectionCTop = sectionAH + sectionBH
+    const sectionCH = H - sectionCTop
+    const sectionCCy = sectionCTop + sectionCH / 2
+
+    // Play button — fills 82% of right panel width, tall and dominant
+    const btnW = Math.min(rW - 40, 680)
+    const btnH = Math.max(72, Math.round(sectionCH * 0.42))
+    const btnY = sectionCTop + Math.round(sectionCH * 0.38)
+    const btnFontSize = Math.round(Math.min(38, btnH * 0.46))
+
+    // Button shadow
+    this.add.rectangle(rCx + 6, btnY + 6, btnW, btnH, 0x012a55, 0.7)
+    // Button glow halo
+    this.add.rectangle(rCx, btnY, btnW + 10, btnH + 10, 0x0ea5e9, 0.18)
+    // Button body
+    const btnBg = this.add.rectangle(rCx, btnY, btnW, btnH, 0x0284c7).setInteractive({ useHandCursor: true })
+    // Shine strip
+    this.add.rectangle(rCx, btnY - btnH / 2 + 12, btnW - 12, 20, 0xffffff, 0.12)
+    // Label
+    this.add.text(rCx, btnY, '▶   ¡Jugar ahora!', {
+      fontFamily: 'Exo 2, system-ui', fontSize: `${btnFontSize}px`,
+      color: '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5)
+
+    btnBg.on('pointerover', () => btnBg.setFillStyle(0x0ea5e9))
+    btnBg.on('pointerout',  () => btnBg.setFillStyle(0x0284c7))
+    btnBg.on('pointerdown', () => {
+      this.cameras.main.fadeOut(300)
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.start('PlayScene', {
+          questions, levelName: this.levelName,
+          topic: this.topic, difficulty: this.difficulty, levelOrder: this.levelOrder,
+        })
+      })
+    })
+
+    // Hint below button
+    this.add.text(rCx, sectionCCy + sectionCH * 0.3, '← Lee la teoría en el panel izquierdo antes de jugar', {
+      fontFamily: 'Exo 2, system-ui', fontSize: '15px', color: '#334155',
+    }).setOrigin(0.5)
+  }
+
+  // ── MOBILE: single-column ─────────────────────────────────────────────────
+
+  private async layoutMobile(W: number, H: number) {
+    const theory = THEORY[this.topic] ?? DEFAULT_THEORY
+    const pad = 14
+
+    // ── TOP STRIP: level identity ─────────────────────────────────────────
+    const topH = Math.round(H * 0.24)
+    this.add.rectangle(W / 2, topH / 2, W, topH, 0x0a1628).setStrokeStyle(1, 0x0ea5e9, 0.6)
+    this.add.rectangle(W / 2, topH, W, 2, 0x0ea5e9, 0.4)
+
+    const nameFontSize = Math.round(Math.min(32, H * 0.07))
+    this.add.text(W / 2, topH * 0.35, this.levelName, {
+      fontFamily: 'Exo 2, system-ui', fontSize: `${nameFontSize}px`,
+      color: '#f1f9ff', fontStyle: 'bold',
+      wordWrap: { width: W - 24 }, align: 'center',
+      shadow: { offsetX: 0, offsetY: 0, color: '#38bdf8', blur: 8, fill: true },
+    }).setOrigin(0.5, 0.5)
+
+    const topicLabel = TOPIC_LABEL[this.topic] ?? this.topic
+    this.add.text(W / 2, topH * 0.76, topicLabel, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '16px', color: '#64748b', fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5)
+
+    // ── MIDDLE: formula card ──────────────────────────────────────────────
+    const midTop = topH + pad
+    const midH = Math.round(H * 0.36)
+    const midCy = midTop + midH / 2
+
+    this.add.rectangle(W / 2, midCy, W - pad * 2, midH - 4, 0x0c2233).setStrokeStyle(2, 0x0ea5e9)
+
+    this.add.text(W / 2, midCy - midH * 0.28, theory.formula, {
+      fontFamily: 'JetBrains Mono, monospace', fontSize: '17px',
+      color: '#7dd3fc', fontStyle: 'bold',
+      wordWrap: { width: W - pad * 3 }, align: 'center',
+    }).setOrigin(0.5, 0.5)
+
+    this.add.text(W / 2, midCy, theory.formulaLabel, {
+      fontFamily: 'Exo 2, system-ui', fontSize: '13px', color: '#334155',
+    }).setOrigin(0.5, 0.5)
+
+    this.add.text(W / 2, midCy + midH * 0.28, `💡  ${theory.example}`, {
+      fontFamily: 'JetBrains Mono, monospace', fontSize: '14px',
+      color: '#fde68a', wordWrap: { width: W - pad * 3 }, align: 'center',
+    }).setOrigin(0.5, 0.5)
+
+    // ── LOADING STATUS ────────────────────────────────────────────────────
+    const statusTop = midTop + midH + pad
+    const statusH = Math.round(H * 0.12)
+    const statusCy = statusTop + statusH / 2
+
+    const loadingText = this.add.text(W / 2, statusCy, 'Generando preguntas...', {
+      fontFamily: 'Exo 2, system-ui', fontSize: '16px', color: '#64748b',
+    }).setOrigin(0.5)
+
+    let questions: GameQuestion[] = []
+    let dots = ''
+    const dotTimer = this.time.addEvent({
+      delay: 380,
+      callback: () => { dots = dots.length < 3 ? dots + '.' : ''; loadingText.setText(`Generando preguntas${dots}`) },
+      repeat: -1,
+    })
+
+    try {
+      questions = this.topic === 'mixed'
+        ? await questionsService.generateMixed(this.totalQuestions)
+        : await questionsService.generateBatch(this.topic, this.difficulty, this.totalQuestions)
+    } catch { /* PlayScene handles empty */ }
+
+    dotTimer.destroy()
+    loadingText.setText('✓  Preguntas listas')
+    loadingText.setStyle({ color: '#10b981', fontSize: '18px' })
+
+    // ── PLAY BUTTON — full width, bottom of screen ────────────────────────
+    const btnH = Math.max(56, Math.round(H * 0.14))
+    const btnW = W - pad * 2
+    const btnY = H - pad - btnH / 2
+    const btnFontSize = Math.round(Math.min(30, btnH * 0.46))
+
+    this.add.rectangle(W / 2 + 5, btnY + 5, btnW, btnH, 0x012a55, 0.6)
+    this.add.rectangle(W / 2, btnY, btnW + 8, btnH + 8, 0x0ea5e9, 0.15)
+    const btnBg = this.add.rectangle(W / 2, btnY, btnW, btnH, 0x0284c7).setInteractive({ useHandCursor: true })
+    this.add.text(W / 2, btnY, '▶   ¡Jugar ahora!', {
+      fontFamily: 'Exo 2, system-ui', fontSize: `${btnFontSize}px`,
+      color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5)
 
     btnBg.on('pointerover', () => btnBg.setFillStyle(0x0ea5e9))
@@ -167,207 +362,11 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  // ── Desktop: two-column layout ────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async createDesktopLayout(width: number, height: number) {
-    const theory = THEORY[this.topic] ?? DEFAULT_THEORY
-
-    // Left: theory card — 48% of width, full height minus margins, starts below Salir button
-    const cardW = Math.min(520, Math.round(width * 0.48))
-    const cardX = cardW / 2 + 16
-    const cardH = height - 32
-    const cardY = height / 2
-
-    this.add.rectangle(cardX, cardY, cardW, cardH, 0x0a1628).setStrokeStyle(2, 0x0ea5e9)
-
-    // Content starts at y = 60 to clear the ← Salir React button overlay
-    let ty = cardY - cardH / 2 + 60
-    const tLeft = cardX - cardW / 2 + 24
-    const textW = cardW - 48
-
-    this.add.text(tLeft, ty, `📖  ${theory.title}`, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '26px',
-      color: '#38bdf8',
-      fontStyle: 'bold',
-      wordWrap: { width: textW },
-    })
-    ty += 38
-
-    this.add.text(tLeft, ty, theory.subtitle, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '17px',
-      color: '#94a3b8',
-      wordWrap: { width: textW },
-    })
-    ty += 30
-
-    const sg = this.add.graphics()
-    sg.lineStyle(1, 0x1e3a5f, 1)
-    sg.lineBetween(tLeft, ty, tLeft + textW, ty)
-    ty += 18
-
-    this.add.text(tLeft, ty, theory.concept, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '18px',
-      color: '#cbd5e1',
-      wordWrap: { width: textW },
-      lineSpacing: 8,
-    })
-    ty += 100
-
-    // Formula box — proportional height
-    const fboxH = 84
-    this.add.rectangle(cardX, ty + fboxH / 2, cardW - 40, fboxH, 0x0c2233).setStrokeStyle(2, 0x0ea5e9)
-    this.add.text(cardX, ty + 14, theory.formula, {
-      fontFamily: 'JetBrains Mono, monospace',
-      fontSize: '20px',
-      color: '#7dd3fc',
-      fontStyle: 'bold',
-      wordWrap: { width: cardW - 64 },
-      align: 'center',
-    }).setOrigin(0.5, 0)
-    this.add.text(cardX, ty + fboxH - 20, theory.formulaLabel, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '15px',
-      color: '#7dd3fc',
-    }).setOrigin(0.5, 0)
-    ty += fboxH + 18
-
-    this.add.text(tLeft, ty, '💡 ' + theory.example, {
-      fontFamily: 'JetBrains Mono, monospace',
-      fontSize: '16px',
-      color: '#fde68a',
-      wordWrap: { width: textW },
-    })
-    ty += 52
-
-    sg.lineStyle(1, 0x1e3a5f, 1)
-    sg.lineBetween(tLeft, ty, tLeft + textW, ty)
-    ty += 16
-
-    this.add.text(tLeft, ty, '✦ Pasos clave', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '17px',
-      color: '#10b981',
-      fontStyle: 'bold',
-    })
-    ty += 26
-
-    theory.tips.forEach((tip, i) => {
-      this.add.text(tLeft, ty, `${i + 1}.  ${tip}`, {
-        fontFamily: 'Exo 2, system-ui',
-        fontSize: '17px',
-        color: '#94a3b8',
-        wordWrap: { width: textW },
-      })
-      ty += 30
-    })
-
-    // ── Right panel — distributed proportionally ───────────────────────────
-    const rightStart = cardX + cardW / 2 + 8
-    const rightW = width - rightStart - 8
-    const rightCx = rightStart + rightW / 2
-
-    // Title block — top 25% of height
-    const titleY = Math.round(height * 0.22)
-    const titleBoxH = 58
-    this.add.rectangle(rightCx, titleY, rightW - 16, titleBoxH + 12, 0x0c2233, 0.9).setStrokeStyle(1, 0x0ea5e9, 0.6)
-    this.add.text(rightCx, titleY, this.levelName, {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: `${Math.min(42, Math.round(rightW * 0.12))}px`,
-      color: '#f0f9ff',
-      fontStyle: 'bold',
-      wordWrap: { width: rightW - 32 },
-      align: 'center',
-      shadow: { offsetX: 0, offsetY: 0, color: '#38bdf8', blur: 12, fill: true },
-    }).setOrigin(0.5)
-
-    // Status row — 47% of height
-    const statusY = Math.round(height * 0.47)
-    const loadingText = this.add.text(rightCx, statusY, 'Generando preguntas...', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '18px',
-      color: '#94a3b8',
-    }).setOrigin(0.5)
-
-    const spinnerY = statusY + 42
-    const spinner = this.add.graphics()
-    this.tweens.add({
-      targets: { angle: 0 },
-      angle: 360,
-      duration: 900,
-      repeat: -1,
-      onUpdate: (tween) => {
-        const a = (tween.targets[0] as { angle: number }).angle
-        spinner.clear()
-        spinner.lineStyle(3, 0x0ea5e9, 1)
-        spinner.beginPath()
-        spinner.arc(rightCx, spinnerY, 16, Phaser.Math.DegToRad(a), Phaser.Math.DegToRad(a + 260))
-        spinner.strokePath()
-      },
-    })
-
-    this.add.text(rightCx, statusY + 86, '↑ Lee la teoría mientras esperas', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: '16px',
-      color: '#475569',
-    }).setOrigin(0.5)
-
-    let questions: GameQuestion[] = []
-    let dots = ''
-    const dotTimer = this.time.addEvent({
-      delay: 380,
-      callback: () => {
-        dots = dots.length < 3 ? dots + '.' : ''
-        loadingText.setText(`Generando preguntas${dots}`)
-      },
-      repeat: -1,
-    })
-
-    try {
-      if (this.topic === 'mixed') {
-        questions = await questionsService.generateMixed(this.totalQuestions)
-      } else {
-        questions = await questionsService.generateBatch(this.topic, this.difficulty, this.totalQuestions)
-      }
-    } catch { /* PlayScene handles empty array */ }
-
-    dotTimer.destroy()
-    spinner.clear()
-    loadingText.setText('¡Preguntas listas!')
-    loadingText.setStyle({ color: '#10b981', fontSize: '20px' })
-
-    // Play button — 65% of height, fills most of right panel width
-    const btnW = Math.min(rightW - 16, 380)
-    const btnH = Math.max(56, Math.round(height * 0.12))
-    const btnY = Math.round(height * 0.66)
-    const btnFontSize = Math.round(Math.min(32, btnH * 0.48))
-
-    const btnShadow = this.add.rectangle(rightCx + 5, btnY + 5, btnW, btnH, 0x012a55).setAlpha(0)
-    const btnGlow   = this.add.rectangle(rightCx, btnY, btnW + 8, btnH + 8, 0x0ea5e9, 0.22).setAlpha(0)
-    const btnBg     = this.add.rectangle(rightCx, btnY, btnW, btnH, 0x0284c7)
-      .setInteractive({ useHandCursor: true }).setAlpha(0)
-    const btnShine  = this.add.rectangle(rightCx, btnY - btnH / 2 + 10, btnW - 8, 18, 0xffffff, 0.14).setAlpha(0)
-    const btnLabel  = this.add.text(rightCx, btnY, '▶  ¡Jugar!', {
-      fontFamily: 'Exo 2, system-ui',
-      fontSize: `${btnFontSize}px`,
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setAlpha(0)
-
-    this.tweens.add({ targets: [btnShadow, btnGlow, btnBg, btnShine, btnLabel], alpha: 1, duration: 320, ease: 'Back.Out' })
-
-    btnBg.on('pointerover', () => btnBg.setFillStyle(0x0ea5e9))
-    btnBg.on('pointerout',  () => btnBg.setFillStyle(0x0284c7))
-    btnBg.on('pointerdown', () => {
-      this.cameras.main.fadeOut(300)
-      this.cameras.main.once('camerafadeoutcomplete', () => {
-        this.scene.start('PlayScene', {
-          questions, levelName: this.levelName,
-          topic: this.topic, difficulty: this.difficulty, levelOrder: this.levelOrder,
-        })
-      })
-    })
+  private drawDivider(x: number, y: number, w: number) {
+    const g = this.add.graphics()
+    g.lineStyle(1, 0x1e3a5f, 1)
+    g.lineBetween(x, y, x + w, y)
   }
 }
