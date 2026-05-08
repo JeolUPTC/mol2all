@@ -1,6 +1,6 @@
 {
   "deploy": {
-    "startCommand": "sh -c 'npx prisma db push --accept-data-loss && node dist/main'",
+    "startCommand": "sh -c 'npx prisma db push --accept-data-loss && echo \"=== Prisma OK — iniciando NestJS ===\" && node dist/main'",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
