@@ -111,7 +111,7 @@ export function GamePage() {
   return (
     <div
       className="relative w-screen overflow-hidden bg-black"
-      style={{ height: '100dvh' }}
+      style={{ height: '100dvh', touchAction: 'none' }}
     >
       <PhaserGame levelConfig={levelConfig} onComplete={handleComplete} />
       <button

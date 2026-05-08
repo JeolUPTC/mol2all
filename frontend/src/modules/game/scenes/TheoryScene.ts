@@ -17,16 +17,32 @@ export class TheoryScene extends Phaser.Scene {
     const cx = width / 2
     const cy = height / 2
 
-    const panelW = Math.min(700, width - 24)
-    const panelH = Math.min(520, height - 24)
+    const closeBtnH = 44
+    const panelW = Math.min(700, width - 16)
+    const panelH = Math.min(520, height - 16)
 
     // Overlay
-    this.add.rectangle(cx, cy, width, height, 0x000000, 0.84)
+    this.add.rectangle(cx, cy, width, height, 0x000000, 0.88)
 
     // Panel
     this.add.rectangle(cx, cy, panelW, panelH, 0x0f172a).setStrokeStyle(2, 0x38bdf8)
 
-    // Close button (top-right)
+    // Large close button at the very bottom of the panel (touch-friendly)
+    const closeBtnY = cy + panelH / 2 - closeBtnH / 2 - 6
+    const closeBg = this.add
+      .rectangle(cx, closeBtnY, panelW - 16, closeBtnH, 0x1e3a5f)
+      .setInteractive({ useHandCursor: true })
+    this.add.text(cx, closeBtnY, '✕  Cerrar teoría', {
+      fontFamily: 'Exo 2, system-ui',
+      fontSize: '16px',
+      color: '#94a3b8',
+      fontStyle: 'bold',
+    }).setOrigin(0.5)
+    closeBg.on('pointerover', () => closeBg.setFillStyle(0x075985))
+    closeBg.on('pointerout',  () => closeBg.setFillStyle(0x1e3a5f))
+    closeBg.on('pointerdown', () => { this.scene.stop('TheoryScene'); data.onClose() })
+
+    // Small ✕ in top-right (desktop convenience)
     const closeBtn = this.add
       .text(cx + panelW / 2 - 14, cy - panelH / 2 + 14, '✕', {
         fontFamily: 'Exo 2, system-ui',

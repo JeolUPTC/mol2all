@@ -44,51 +44,58 @@ export class CalculatorScene extends Phaser.Scene {
     this.showPT = data.showPT ?? false
 
     const { width, height } = this.cameras.main
-    const panelW = 296
+
+    // On small screens use a compact panel; on large screens keep original size
+    const isMobile = width < 600
+    const panelW = isMobile ? Math.min(296, width - 16) : 296
+
     const hasPT = this.showPT
-    const panelH = data.onInsert
+    const closeBtnH = 40
+    const baseH = data.onInsert
       ? (hasPT ? 430 : 390)
       : (hasPT ? 408 : 368)
-    const cx = width / 2 + 200   // right-of-center so question stays visible
-    const cy = height / 2
+    const panelH = baseH + (isMobile ? closeBtnH + GAP : 0)
 
-    // Constraint to canvas
-    const px = Math.min(cx, width - panelW / 2 - 8)
-    const py = Math.min(cy, height - panelH / 2 - 8)
+    // Always center horizontally; on desktop, shift right so quiz is still visible
+    const cx = isMobile
+      ? width / 2
+      : Math.min(width / 2 + 200, width - panelW / 2 - 8)
+    const cy = Math.min(height / 2, height - panelH / 2 - 8)
 
-    // Backdrop (dim only where calculator sits)
-    this.add.rectangle(px, py, panelW, panelH, 0x000000, 0.6)
+    // Full-screen dim so user knows calculator is a modal
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
 
-    const panel = this.add.rectangle(px, py, panelW, panelH, 0x0f172a)
+    const panel = this.add.rectangle(cx, cy, panelW, panelH, 0x0f172a)
     panel.setStrokeStyle(2, 0x38bdf8)
 
     // ── Header ──────────────────────────────────────────────────────────
-    this.add.text(px - panelW / 2 + 12, py - panelH / 2 + 10, '🧮 Calculadora', {
+    this.add.text(cx - panelW / 2 + 12, cy - panelH / 2 + 10, '🧮 Calculadora', {
       fontFamily: 'Exo 2, system-ui',
       fontSize: '14px',
       color: '#38bdf8',
       fontStyle: 'bold',
     })
 
-    const closeBtn = this.add
-      .text(px + panelW / 2 - 12, py - panelH / 2 + 10, '✕', {
+    // Small ✕ in top-right (kept for desktop mouse users)
+    const closeSmall = this.add
+      .text(cx + panelW / 2 - 12, cy - panelH / 2 + 10, '✕', {
         fontFamily: 'Exo 2, system-ui',
         fontSize: '16px',
         color: '#64748b',
       })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
-    closeBtn.on('pointerover', () => closeBtn.setStyle({ color: '#f1f5f9' }))
-    closeBtn.on('pointerout', () => closeBtn.setStyle({ color: '#64748b' }))
-    closeBtn.on('pointerdown', () => this.scene.stop('CalculatorScene'))
+    closeSmall.on('pointerover', () => closeSmall.setStyle({ color: '#f1f5f9' }))
+    closeSmall.on('pointerout', () => closeSmall.setStyle({ color: '#64748b' }))
+    closeSmall.on('pointerdown', () => this.scene.stop('CalculatorScene'))
 
     // ── Display ──────────────────────────────────────────────────────────
-    const dispY = py - panelH / 2 + 58
+    const dispY = cy - panelH / 2 + 58
     const dispW = panelW - 20
-    this.add.rectangle(px, dispY, dispW, 60, 0x020617).setStrokeStyle(1, 0x1e3a5f)
+    this.add.rectangle(cx, dispY, dispW, 60, 0x020617).setStrokeStyle(1, 0x1e3a5f)
 
     this.exprText = this.add
-      .text(px + dispW / 2 - 8, dispY - 14, '0', {
+      .text(cx + dispW / 2 - 8, dispY - 14, '0', {
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: '14px',
         color: '#64748b',
@@ -98,7 +105,7 @@ export class CalculatorScene extends Phaser.Scene {
       .setOrigin(1, 0.5)
 
     this.resultText = this.add
-      .text(px + dispW / 2 - 8, dispY + 14, '', {
+      .text(cx + dispW / 2 - 8, dispY + 14, '', {
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: '20px',
         color: '#38bdf8',
@@ -108,8 +115,8 @@ export class CalculatorScene extends Phaser.Scene {
 
     // ── Button grid ───────────────────────────────────────────────────────
     const gridW = 4 * BTN_W + 3 * GAP
-    const gridStartX = px - gridW / 2 + BTN_W / 2
-    const gridStartY = py - panelH / 2 + 108
+    const gridStartX = cx - gridW / 2 + BTN_W / 2
+    const gridStartY = cy - panelH / 2 + 108
 
     ROWS.forEach((row, ri) => {
       row.forEach((key, ci) => {
@@ -119,11 +126,11 @@ export class CalculatorScene extends Phaser.Scene {
       })
     })
 
-    // ── Periodic table shortcut (molar_mass only) ─────────────────────────
+    // ── Periodic table shortcut ───────────────────────────────────────────
     const ptY = gridStartY + 5 * (BTN_H + GAP) + 8
     if (this.showPT) {
       const ptBtn = this.add
-        .text(px, ptY, '⚛  Tabla periódica', {
+        .text(cx, ptY, '⚛  Tabla periódica', {
           fontFamily: 'Exo 2, system-ui',
           fontSize: '13px',
           color: '#a78bfa',
@@ -144,11 +151,11 @@ export class CalculatorScene extends Phaser.Scene {
       })
     }
 
-    // ── Insert result into answer (NUMERIC_INPUT only) ────────────────────
+    // ── Insert result into answer ─────────────────────────────────────────
     if (this.onInsert) {
       const insY = this.showPT ? ptY + 40 : ptY
       const insBtn = this.add
-        .text(px, insY, '→  Usar resultado como respuesta', {
+        .text(cx, insY, '→  Usar resultado como respuesta', {
           fontFamily: 'Exo 2, system-ui',
           fontSize: '12px',
           color: '#ffffff',
@@ -166,6 +173,22 @@ export class CalculatorScene extends Phaser.Scene {
         }
       })
     }
+
+    // ── Large close button at bottom (touch-friendly) ─────────────────────
+    const closeBtnY = cy + panelH / 2 - closeBtnH / 2 - 6
+    const closeBg = this.add
+      .rectangle(cx, closeBtnY, panelW - 16, closeBtnH, 0x1e3a5f)
+      .setInteractive({ useHandCursor: true })
+    this.add.text(cx, closeBtnY, '✕  Cerrar calculadora', {
+      fontFamily: 'Exo 2, system-ui',
+      fontSize: '15px',
+      color: '#94a3b8',
+      fontStyle: 'bold',
+    }).setOrigin(0.5)
+
+    closeBg.on('pointerover', () => closeBg.setFillStyle(0x075985))
+    closeBg.on('pointerout',  () => closeBg.setFillStyle(0x1e3a5f))
+    closeBg.on('pointerdown', () => this.scene.stop('CalculatorScene'))
   }
 
   // ── Button factory ────────────────────────────────────────────────────────
@@ -205,11 +228,9 @@ export class CalculatorScene extends Phaser.Scene {
       this.evaluate()
       return
     } else {
-      // After evaluation, a digit starts a new expression; an operator continues
       if (this.justEvaluated && /[\d.]/.test(key)) {
         this.expr = key
       } else if (this.justEvaluated && /[+\-×÷]/.test(key)) {
-        // Continue from last result
         this.expr = String(this.lastResult) + key
       } else {
         this.expr += key
@@ -234,7 +255,6 @@ export class CalculatorScene extends Phaser.Scene {
     }
   }
 
-  /** Called by PeriodicTableScene when user clicks an element */
   insertMass(mass: number) {
     if (this.justEvaluated) {
       this.expr = String(mass)

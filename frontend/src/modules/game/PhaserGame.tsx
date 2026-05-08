@@ -24,16 +24,20 @@ function useIsPortraitMobile() {
   const check = (): boolean => {
     const w = window.innerWidth
     const h = window.innerHeight
-    const isPhone = Math.min(w, h) < 768
-    if (!isPhone) return false
+    if (Math.min(w, h) >= 768) return false
+    // Try screen orientation API first (most reliable)
     if (window.screen?.orientation?.type) {
       return window.screen.orientation.type.startsWith('portrait')
+    }
+    // matchMedia fallback
+    if (typeof window.matchMedia === 'function') {
+      return window.matchMedia('(orientation: portrait)').matches
     }
     return h > w
   }
   const [portrait, setPortrait] = useState(check)
   useEffect(() => {
-    const handler = () => setPortrait(check())
+    const handler = () => setTimeout(() => setPortrait(check()), 80)
     window.addEventListener('resize', handler)
     window.addEventListener('orientationchange', handler)
     return () => {
@@ -48,7 +52,6 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
   const { updateLives, updateScore, updateEnergy, endGame } = useGameStore()
   const isPortrait = useIsPortraitMobile()
 
-  // Stable ref so the Phaser event handler always sees the latest callback
   const onCompleteRef = useRef(onComplete)
   useEffect(() => {
     onCompleteRef.current = onComplete
@@ -57,7 +60,6 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
   useEffect(() => {
     const game = new Phaser.Game(createPhaserConfig(CONTAINER_ID))
 
-    // Registry is synchronously available; BootScene reads it on the first animation frame
     if (levelConfig) {
       game.registry.set('levelConfig', levelConfig)
     }
@@ -71,8 +73,6 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
     })
     const unsubFailed = gameEventBus.on('level:failed', () => {
       endGame()
-      // Deliberately NOT calling handleComplete here: a failed run must not lock
-      // sessionCompletedRef so that the player can retry and get the win recorded.
     })
 
     return () => {
@@ -84,20 +84,29 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
       unsubFailed()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // intentionally once — levelConfig goes via Phaser registry, not re-render
+  }, [])
 
-  if (isPortrait) {
-    return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-center">
-        <span className="text-6xl">🔄</span>
-        <p className="text-xl font-bold text-sky-300">Rota tu dispositivo</p>
-        <p className="text-sm text-slate-400">
-          El juego está diseñado para pantalla horizontal.<br />
-          Gira tu móvil para jugar.
-        </p>
-      </div>
-    )
-  }
-
-  return <div id={CONTAINER_ID} className="h-full w-full" />
+  // Always keep the Phaser canvas mounted — unmounting it while Phaser is running
+  // leaves the game loop attached to a detached canvas and causes scroll-lock bugs.
+  // Instead, overlay the rotate message on top when portrait is detected.
+  return (
+    <div className="relative h-full w-full">
+      <div
+        id={CONTAINER_ID}
+        className="h-full w-full"
+        style={{ touchAction: 'none' }}
+      />
+      {isPortrait && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-900/97 p-6 text-center">
+          <span className="text-6xl">🔄</span>
+          <p className="text-2xl font-bold text-sky-300">Rota tu dispositivo</p>
+          <p className="text-base text-slate-400">
+            El juego está diseñado para pantalla horizontal.
+            <br />
+            Gira tu móvil para jugar.
+          </p>
+        </div>
+      )}
+    </div>
+  )
 }
