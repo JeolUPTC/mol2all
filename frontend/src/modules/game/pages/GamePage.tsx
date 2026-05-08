@@ -99,7 +99,7 @@ export function GamePage() {
 
   if (gameState === 'loading' || !levelConfig) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-slate-950">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-slate-950">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
         <p className="font-display text-sm text-slate-400">Preparando nivel...</p>
       </div>
@@ -118,13 +118,13 @@ export function GamePage() {
 
   // playing — HUD (h-14 = 56px) on top, Phaser fills the rest exactly
   return (
-    <div className="relative flex flex-col bg-slate-950" style={{ height: '100dvh', touchAction: 'none' }}>
+    <div className="relative flex flex-1 flex-col bg-slate-950" style={{ touchAction: 'none' }}>
       <GameHUD
         levelName={levelConfig.levelName}
         topic={levelConfig.topic}
         onExit={() => navigate('/dashboard')}
       />
-      <div className="w-full" style={{ height: 'calc(100dvh - 56px)' }}>
+      <div style={{ height: 'calc(100vh - 56px)', width: '100%' }}>
         <PhaserGame
           levelConfig={{ ...levelConfig, questions }}
           onComplete={handleComplete}

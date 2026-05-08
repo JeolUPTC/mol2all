@@ -27,6 +27,7 @@ export function GameHUD({ levelName, topic, onExit }: GameHUDProps) {
     setShowTheory(true)
   }
   const closeTheory = () => {
+    window.dispatchEvent(new CustomEvent('mol2all:theory:close'))
     setShowTheory(false)
   }
 

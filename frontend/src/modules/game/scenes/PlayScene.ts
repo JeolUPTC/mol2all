@@ -182,10 +182,15 @@ export class PlayScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player.getSprite(), true, 0.12, 0.12)
     this.hud = new HUDSystem(this, this.levelName, this.questions.length)
 
-    // React HUD triggers theory via DOM event
-    const theoryHandler = () => this.openTheory()
+    // React HUD opens theory modal — just pause/resume Phaser, React handles the display
+    const theoryHandler = () => { if (!this.isQuizActive) this.scene.pause('PlayScene') }
+    const theoryCloseHandler = () => { try { this.scene.resume('PlayScene') } catch (_) {} }
     window.addEventListener('mol2all:theory:open', theoryHandler)
-    this.events.once('shutdown', () => window.removeEventListener('mol2all:theory:open', theoryHandler))
+    window.addEventListener('mol2all:theory:close', theoryCloseHandler)
+    this.events.once('shutdown', () => {
+      window.removeEventListener('mol2all:theory:open', theoryHandler)
+      window.removeEventListener('mol2all:theory:close', theoryCloseHandler)
+    })
 
     // Emit initial question count so React HUD can show 0/N
     gameEventBus.emit('question:answered', { count: 0, total: this.questions.length })

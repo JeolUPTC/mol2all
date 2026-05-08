@@ -36,7 +36,7 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
   const handlePlay = () => { if (questions) onPlay(questions) }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+    <div className="flex flex-1 flex-col bg-slate-950 text-slate-100 min-h-0">
 
       {/* ── Thin top bar ─────────────────────────────────────────────── */}
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900 px-5">
@@ -57,9 +57,9 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
       </header>
 
       {/* ── Two-card body ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 gap-4 overflow-hidden p-4">
+      <div className="flex flex-1 gap-4 overflow-hidden p-4 min-h-0">
 
-        {/* LEFT: theory card — flex-1, scrollable */}
+        {/* LEFT: theory card — expands to fill all remaining width */}
         <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
@@ -104,8 +104,8 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
           </div>
         </div>
 
-        {/* RIGHT: info + action card */}
-        <div className="flex w-72 shrink-0 flex-col gap-4">
+        {/* RIGHT: info + action card — fixed width sidebar */}
+        <div className="flex w-80 shrink-0 flex-col gap-4">
 
           {/* Info card */}
           <div className="flex-1 rounded-2xl border border-slate-700 bg-slate-900 p-6 flex flex-col gap-4">
