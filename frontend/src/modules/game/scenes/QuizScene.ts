@@ -40,10 +40,12 @@ export class QuizScene extends Phaser.Scene {
   private renderMCQuestion(q: GameQuestion) {
     const { width, height } = this.cameras.main
     const cx = width / 2
+    // On mobile the canvas is scaled down — compensate with larger fonts
+    const m = window.innerWidth < 900 ? 1.45 : 1
     const panelW = Math.min(720, width - 20)
-    const STEM_FONT = 28
+    const STEM_FONT = Math.round(28 * m)
     const STEM_MAX_W = panelW - 56
-    const BTN_H = 60
+    const BTN_H = Math.round(60 * m)
     const BTN_GAP = 10
     const LINE_SPACING = 10
     const MARGIN = 12
@@ -76,7 +78,7 @@ export class QuizScene extends Phaser.Scene {
     this.add
       .text(cx, MARGIN + 16, badgeLabel, {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '11px',
+        fontSize: `${Math.round(11 * m)}px`,
         color: '#7dd3fc',
         backgroundColor: '#0c2233',
         padding: { x: 10, y: 4 },
@@ -115,7 +117,7 @@ export class QuizScene extends Phaser.Scene {
         .rectangle(x, y, btnW, BTN_H, 0x2d3f55)
         .setInteractive({ useHandCursor: true })
 
-      renderChemLine(this, x, y, chemFormat(opt.text), 20, '#ffffff', 'Exo 2, system-ui', true)
+      renderChemLine(this, x, y, chemFormat(opt.text), Math.round(20 * m), '#ffffff', 'Exo 2, system-ui', true)
 
       bg.on('pointerover', () => bg.setFillStyle(0x0369a1))
       bg.on('pointerout',  () => bg.setFillStyle(0x2d3f55))
@@ -141,6 +143,7 @@ export class QuizScene extends Phaser.Scene {
   private renderNumericQuestion(q: GameQuestion) {
     const { width, height } = this.cameras.main
     const cx = width / 2
+    const m = window.innerWidth < 900 ? 1.45 : 1
     const panelW = Math.min(580, width - 40)
     const panelH = height - 20
     const panelTop = (height - panelH) / 2  // = 10
@@ -155,7 +158,7 @@ export class QuizScene extends Phaser.Scene {
     }
 
     // Stem — renderChemWrapped gives crisp subscripts at proper sizes
-    const STEM_FONT = 30
+    const STEM_FONT = Math.round(30 * m)
     const LINE_SPACING = 8
     const stemTop = panelTop + 22
     const stemH = renderChemWrapped(

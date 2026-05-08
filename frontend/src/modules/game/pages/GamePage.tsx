@@ -109,7 +109,10 @@ export function GamePage() {
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
+    <div
+      className="relative w-screen overflow-hidden bg-black"
+      style={{ height: '100dvh' }}
+    >
       <PhaserGame levelConfig={levelConfig} onComplete={handleComplete} />
       <button
         onClick={() => navigate('/dashboard')}

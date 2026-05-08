@@ -21,8 +21,16 @@ interface PhaserGameProps {
 }
 
 function useIsPortraitMobile() {
-  const check = () =>
-    window.innerWidth < 768 && window.innerHeight > window.innerWidth
+  const check = (): boolean => {
+    const w = window.innerWidth
+    const h = window.innerHeight
+    const isPhone = Math.min(w, h) < 768
+    if (!isPhone) return false
+    if (window.screen?.orientation?.type) {
+      return window.screen.orientation.type.startsWith('portrait')
+    }
+    return h > w
+  }
   const [portrait, setPortrait] = useState(check)
   useEffect(() => {
     const handler = () => setPortrait(check())
