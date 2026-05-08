@@ -1,0 +1,32 @@
+import Phaser from 'phaser'
+import { BootScene } from '../scenes/BootScene'
+import { MenuScene } from '../scenes/MenuScene'
+import { GameScene } from '../scenes/GameScene'
+import { PlayScene } from '../scenes/PlayScene'
+import { RouletteScene } from '../scenes/RouletteScene'
+import { QuizScene } from '../scenes/QuizScene'
+import { TheoryScene } from '../scenes/TheoryScene'
+import { ResultScene } from '../scenes/ResultScene'
+import { CalculatorScene } from '../scenes/CalculatorScene'
+import { PeriodicTableScene } from '../scenes/PeriodicTableScene'
+
+export const createPhaserConfig = (parent: string): Phaser.Types.Core.GameConfig => ({
+  type: Phaser.AUTO,
+  parent,
+  width: 800,
+  height: 600,
+  backgroundColor: '#0f172a',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  physics: {
+    default: 'arcade',
+    arcade: { gravity: { x: 0, y: 300 }, debug: import.meta.env.DEV },
+  },
+  render: {
+    antialias: true,
+    roundPixels: true,
+  },
+  scene: [BootScene, MenuScene, GameScene, PlayScene, RouletteScene, QuizScene, TheoryScene, ResultScene, CalculatorScene, PeriodicTableScene],
+})

@@ -1,0 +1,234 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum LevelStatus {
+  LOCKED
+  AVAILABLE
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  NUMERIC_INPUT
+  EQUATION_BALANCE
+  MATCH_PAIRS
+}
+
+enum QuestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  password     String
+  role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
+  refreshToken         String?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  groupId      String?
+  group        Group?   @relation("GroupStudents", fields: [groupId], references: [id])
+  teacherGroups Group[] @relation("GroupTeacher")
+
+  profile           Profile?
+  progress          Progress[]
+  gameSessions      GameSession[]
+  userAchievements  UserAchievement[]
+  authoredQuestions Question[]        @relation("QuestionAuthor")
+
+  @@map("users")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teacherId   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacher  User?  @relation("GroupTeacher", fields: [teacherId], references: [id])
+  students User[] @relation("GroupStudents")
+
+  @@map("groups")
+}
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  displayName String?
+  avatarId    String  @default("default")
+  grade       String?
+  institution String?
+  totalXp     Int     @default(0)
+  totalCoins  Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Level {
+  id          String  @id @default(cuid())
+  order       Int     @unique
+  name        String
+  description String?
+  topic       String
+  difficulty  Int     @default(1)
+  xpReward    Int     @default(100)
+  coinsReward Int     @default(50)
+  isActive    Boolean @default(true)
+
+  questions LevelQuestion[]
+  progress  Progress[]
+  missions  Mission[]
+
+  @@map("levels")
+}
+
+model Question {
+  id            String         @id @default(cuid())
+  type          QuestionType
+  topic         String
+  stem          String
+  latexFormula  String?
+  options       Json?
+  correctAnswer Json
+  explanation   String?
+  difficulty    Int            @default(1)
+  isGenerated   Boolean        @default(false)
+  isActive      Boolean        @default(true)
+  status        QuestionStatus @default(APPROVED)
+  authorId      String?
+  reviewNote    String?
+  createdAt     DateTime       @default(now())
+
+  author         User?           @relation("QuestionAuthor", fields: [authorId], references: [id])
+  levelQuestions LevelQuestion[]
+  sessionAnswers SessionAnswer[]
+
+  @@map("questions")
+}
+
+model LevelQuestion {
+  levelId    String
+  questionId String
+  order      Int
+
+  level    Level    @relation(fields: [levelId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@id([levelId, questionId])
+  @@map("level_questions")
+}
+
+model Progress {
+  id          String      @id @default(cuid())
+  userId      String
+  levelId     String
+  status      LevelStatus @default(LOCKED)
+  stars       Int         @default(0)
+  highScore   Int         @default(0)
+  attempts    Int         @default(0)
+  completedAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  level Level @relation(fields: [levelId], references: [id])
+
+  @@unique([userId, levelId])
+  @@map("progress")
+}
+
+model GameSession {
+  id        String    @id @default(cuid())
+  userId    String
+  levelId   String
+  score     Int       @default(0)
+  lives     Int       @default(3)
+  energy    Int       @default(100)
+  timeSpent Int       @default(0)
+  completed Boolean   @default(false)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  user    User            @relation(fields: [userId], references: [id])
+  answers SessionAnswer[]
+
+  @@map("game_sessions")
+}
+
+model SessionAnswer {
+  id         String  @id @default(cuid())
+  sessionId  String
+  questionId String
+  answer     Json
+  isCorrect  Boolean
+  timeSpent  Int
+
+  session  GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id])
+
+  @@map("session_answers")
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String
+  iconUrl     String?
+  xpReward    Int    @default(50)
+  condition   Json
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@id([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Mission {
+  id          String @id @default(cuid())
+  levelId     String
+  name        String
+  description String
+  type        String
+  objective   Json
+  reward      Json
+
+  level Level @relation(fields: [levelId], references: [id])
+
+  @@map("missions")
+}

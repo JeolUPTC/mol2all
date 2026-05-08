@@ -1,0 +1,26 @@
+# ── Stage 1: build ────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma
+RUN npm ci
+RUN npx prisma generate
+COPY . .
+RUN npm run build
+
+# ── Stage 2: run ──────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma
+# Install all deps so prisma CLI is available for migrate deploy
+RUN npm ci
+# Reuse generated client from builder instead of regenerating
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+# migrate deploy applies pending migrations; then start compiled app
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
