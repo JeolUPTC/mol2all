@@ -1,8 +1,14 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@stores/authStore'
 
+const resolveBaseURL = () => {
+  const url = import.meta.env.VITE_API_URL
+  if (!url) return '/api'
+  return url.endsWith('/api') ? url : `${url}/api`
+}
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  baseURL: resolveBaseURL(),
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -52,7 +58,7 @@ apiClient.interceptors.response.use(
 
     try {
       const { data } = await axios.post<{ data: { accessToken: string } }>(
-        `${import.meta.env.VITE_API_URL ?? '/api'}/auth/refresh`,
+        `${resolveBaseURL()}/auth/refresh`,
         {},
         { withCredentials: true },
       )
