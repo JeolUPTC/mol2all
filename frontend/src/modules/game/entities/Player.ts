@@ -15,6 +15,11 @@ export class Player {
     up: Phaser.Input.Keyboard.Key
   }
 
+  private touchLeft = false
+  private touchRight = false
+  private touchJump = false
+  private touchObjs: Phaser.GameObjects.GameObject[] = []
+
   isControlEnabled = true
 
   constructor(private scene: Phaser.Scene, x: number, y: number) {
@@ -33,6 +38,55 @@ export class Player {
         up: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
       }
     }
+
+    if (scene.sys.game.device.input.touch) {
+      this.buildTouchControls()
+    }
+  }
+
+  private buildTouchControls() {
+    const { width, height } = this.scene.scale
+    const R = 40
+    const Y = height - 52
+    const DEPTH = 30
+
+    const makeBtn = (cx: number, color: number, label: string) => {
+      const bg = this.scene.add
+        .circle(cx, Y, R, color, 0.45)
+        .setScrollFactor(0)
+        .setDepth(DEPTH)
+        .setInteractive()
+      const lbl = this.scene.add
+        .text(cx, Y, label, { fontSize: '28px', color: '#ffffff' })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(DEPTH + 1)
+      this.touchObjs.push(bg, lbl)
+      return bg
+    }
+
+    const leftBtn  = makeBtn(62,        0x4f46e5, '◀')
+    const rightBtn = makeBtn(155,       0x4f46e5, '▶')
+    const jumpBtn  = makeBtn(width - 65, 0x059669, '▲')
+
+    const bind = (
+      btn: Phaser.GameObjects.Arc,
+      set: (v: boolean) => void,
+    ) => {
+      btn.on('pointerdown',  () => set(true))
+      btn.on('pointerup',    () => set(false))
+      btn.on('pointerout',   () => set(false))
+      btn.on('pointercancel',() => set(false))
+    }
+
+    bind(leftBtn,  (v) => { this.touchLeft  = v })
+    bind(rightBtn, (v) => { this.touchRight = v })
+    bind(jumpBtn,  (v) => { this.touchJump  = v })
+  }
+
+  destroyTouchControls() {
+    this.touchObjs.forEach((o) => o.destroy())
+    this.touchObjs = []
   }
 
   update() {
@@ -48,12 +102,13 @@ export class Player {
       return
     }
 
-    const left = this.cursors?.left.isDown || this.wasd?.left.isDown
-    const right = this.cursors?.right.isDown || this.wasd?.right.isDown
+    const left = this.cursors?.left.isDown || this.wasd?.left.isDown || this.touchLeft
+    const right = this.cursors?.right.isDown || this.wasd?.right.isDown || this.touchRight
     const jumpKey =
       this.cursors?.up.isDown ||
       this.cursors?.space.isDown ||
-      this.wasd?.up.isDown
+      this.wasd?.up.isDown ||
+      this.touchJump
 
     if (left) {
       this.sprite.setVelocityX(-SPEED)

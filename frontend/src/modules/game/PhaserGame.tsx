@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { useGameStore } from '@stores/gameStore'
 import { gameEventBus } from './bridge/gameEventBus'
@@ -20,8 +20,25 @@ interface PhaserGameProps {
   onComplete?: (score: number, stars: number) => void
 }
 
+function useIsPortraitMobile() {
+  const check = () =>
+    window.innerWidth < 768 && window.innerHeight > window.innerWidth
+  const [portrait, setPortrait] = useState(check)
+  useEffect(() => {
+    const handler = () => setPortrait(check())
+    window.addEventListener('resize', handler)
+    window.addEventListener('orientationchange', handler)
+    return () => {
+      window.removeEventListener('resize', handler)
+      window.removeEventListener('orientationchange', handler)
+    }
+  }, [])
+  return portrait
+}
+
 export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
   const { updateLives, updateScore, updateEnergy, endGame } = useGameStore()
+  const isPortrait = useIsPortraitMobile()
 
   // Stable ref so the Phaser event handler always sees the latest callback
   const onCompleteRef = useRef(onComplete)
@@ -60,6 +77,19 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally once — levelConfig goes via Phaser registry, not re-render
+
+  if (isPortrait) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-center">
+        <span className="text-6xl">🔄</span>
+        <p className="text-xl font-bold text-sky-300">Rota tu dispositivo</p>
+        <p className="text-sm text-slate-400">
+          El juego está diseñado para pantalla horizontal.<br />
+          Gira tu móvil para jugar.
+        </p>
+      </div>
+    )
+  }
 
   return <div id={CONTAINER_ID} className="h-full w-full" />
 }
