@@ -68,6 +68,11 @@ async function bootstrap() {
     console.log(`Documentación: http://localhost:${process.env.PORT ?? 3000}/api/docs`)
   }
 
+  // Health check outside the /api global prefix (used by Railway)
+  app.getHttpAdapter().get('/health', (_req: unknown, res: { json: (v: unknown) => void }) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  })
+
   const port = process.env.PORT ?? 3000
   await app.listen(port)
   console.log(`MOL2ALL backend corriendo en http://localhost:${port}/api`)
