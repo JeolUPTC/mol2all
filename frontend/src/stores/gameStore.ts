@@ -9,6 +9,8 @@ interface GameState {
   lives: number
   energy: number
   score: number
+  questionsAnswered: number
+  questionsTotal: number
   isPlaying: boolean
 
   setCurrentLevel: (level: Level) => void
@@ -17,6 +19,7 @@ interface GameState {
   updateLives: (lives: number) => void
   updateEnergy: (energy: number) => void
   updateScore: (score: number) => void
+  updateQuestionsAnswered: (count: number, total: number) => void
   startGame: () => void
   endGame: () => void
   resetGame: () => void
@@ -31,6 +34,8 @@ export const useGameStore = create<GameState>()(
       lives: 3,
       energy: 100,
       score: 0,
+      questionsAnswered: 0,
+      questionsTotal: 0,
       isPlaying: false,
 
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
@@ -39,10 +44,13 @@ export const useGameStore = create<GameState>()(
       updateLives: (lives) => set({ lives }),
       updateEnergy: (energy) => set({ energy }),
       updateScore: (score) => set({ score }),
-      startGame: () => set({ isPlaying: true, lives: 3, energy: 100, score: 0 }),
+      updateQuestionsAnswered: (questionsAnswered, questionsTotal) =>
+        set({ questionsAnswered, questionsTotal }),
+      startGame: () =>
+        set({ isPlaying: true, lives: 3, energy: 100, score: 0, questionsAnswered: 0, questionsTotal: 0 }),
       endGame: () => set({ isPlaying: false }),
       resetGame: () =>
-        set({ lives: 3, energy: 100, score: 0, isPlaying: false, currentSession: null }),
+        set({ lives: 3, energy: 100, score: 0, questionsAnswered: 0, questionsTotal: 0, isPlaying: false, currentSession: null }),
     }),
     { name: 'game-store' },
   ),

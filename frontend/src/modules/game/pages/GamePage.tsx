@@ -116,14 +116,15 @@ export function GamePage() {
     )
   }
 
-  // playing — HUD on top, Phaser canvas fills the rest
+  // playing — HUD (h-14 = 56px) on top, Phaser fills the rest exactly
   return (
-    <div className="flex flex-col bg-black" style={{ height: '100dvh', touchAction: 'none' }}>
+    <div className="relative flex flex-col bg-slate-950" style={{ height: '100dvh', touchAction: 'none' }}>
       <GameHUD
         levelName={levelConfig.levelName}
+        topic={levelConfig.topic}
         onExit={() => navigate('/dashboard')}
       />
-      <div className="relative flex-1 overflow-hidden">
+      <div className="w-full" style={{ height: 'calc(100dvh - 56px)' }}>
         <PhaserGame
           levelConfig={{ ...levelConfig, questions }}
           onComplete={handleComplete}

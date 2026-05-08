@@ -3,6 +3,7 @@ type EventMap = {
   'life:lost': { livesRemaining: number }
   'energy:changed': { energy: number }
   'score:updated': { score: number }
+  'question:answered': { count: number; total: number }
   'level:complete': { score: number; stars: number; timeSpent: number }
   'level:failed': { reason: string }
   'scene:ready': { sceneName: string }

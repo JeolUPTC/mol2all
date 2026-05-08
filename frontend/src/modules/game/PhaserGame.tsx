@@ -51,7 +51,7 @@ function useIsPortraitMobile() {
 }
 
 export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
-  const { updateLives, updateScore, updateEnergy, endGame } = useGameStore()
+  const { updateLives, updateScore, updateEnergy, updateQuestionsAnswered, endGame } = useGameStore()
   const isPortrait = useIsPortraitMobile()
 
   const onCompleteRef = useRef(onComplete)
@@ -72,22 +72,19 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
       },
     })
 
-    const unsubScore = gameEventBus.on('score:updated', ({ score }) => updateScore(score))
-    const unsubLives = gameEventBus.on('life:lost', ({ livesRemaining }) => updateLives(livesRemaining))
-    const unsubEnergy = gameEventBus.on('energy:changed', ({ energy }) => updateEnergy(energy))
-    const unsubComplete = gameEventBus.on('level:complete', ({ score, stars }) => {
-      endGame()
-      onCompleteRef.current?.(score, stars)
-    })
-    const unsubFailed = gameEventBus.on('level:failed', () => {
-      endGame()
-    })
+    const unsubScore    = gameEventBus.on('score:updated',      ({ score }) => updateScore(score))
+    const unsubLives    = gameEventBus.on('life:lost',           ({ livesRemaining }) => updateLives(livesRemaining))
+    const unsubEnergy   = gameEventBus.on('energy:changed',      ({ energy }) => updateEnergy(energy))
+    const unsubQA       = gameEventBus.on('question:answered',   ({ count, total }) => updateQuestionsAnswered(count, total))
+    const unsubComplete = gameEventBus.on('level:complete',      ({ score, stars }) => { endGame(); onCompleteRef.current?.(score, stars) })
+    const unsubFailed   = gameEventBus.on('level:failed',        () => endGame())
 
     return () => {
       game.destroy(true)
       unsubScore()
       unsubLives()
       unsubEnergy()
+      unsubQA()
       unsubComplete()
       unsubFailed()
     }

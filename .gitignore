@@ -37,3 +37,6 @@ coverage/
 
 # Claude Code local data
 .claude/
+
+# Documentation (manuals and generation scripts — delivered separately)
+docs/

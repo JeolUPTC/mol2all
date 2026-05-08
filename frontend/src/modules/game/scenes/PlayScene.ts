@@ -180,7 +180,15 @@ export class PlayScene extends Phaser.Scene {
 
     this.player = new Player(this, 80, this.sy(500))
     this.cameras.main.startFollow(this.player.getSprite(), true, 0.12, 0.12)
-    this.hud = new HUDSystem(this, this.levelName, this.questions.length, () => this.openTheory())
+    this.hud = new HUDSystem(this, this.levelName, this.questions.length)
+
+    // React HUD triggers theory via DOM event
+    const theoryHandler = () => this.openTheory()
+    window.addEventListener('mol2all:theory:open', theoryHandler)
+    this.events.once('shutdown', () => window.removeEventListener('mol2all:theory:open', theoryHandler))
+
+    // Emit initial question count so React HUD can show 0/N
+    gameEventBus.emit('question:answered', { count: 0, total: this.questions.length })
 
     this.physics.add.collider(this.player.getSprite(), this.ground)
     this.physics.add.collider(this.player.getSprite(), this.platforms)
@@ -355,6 +363,7 @@ export class PlayScene extends Phaser.Scene {
       this.portalCleared[portalIndex] = true
       this.portalQuestion[portalIndex] = null
       this.answeredCount++
+      gameEventBus.emit('question:answered', { count: this.answeredCount, total: this.questions.length })
       const pts = 100 + (this.questions[questionIndex]?.difficulty ?? 1) * 25
       this.score += pts
       this.clearPortalVisual(portalIndex)
