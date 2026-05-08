@@ -20,19 +20,27 @@ export class RouletteScene extends Phaser.Scene {
     const { totalQuestions, selectedNumber, question, onAnswer } = data
     const selectedIndex = selectedNumber - 1
 
-    const cx = width / 2
-    const cy = height / 2 + 16
-    const radius = 128
+    // Scale everything to fit the available canvas — design reference is 500px tall
+    const s = Math.max(0.55, Math.min(1, height / 500, width / 420))
+
+    const radius    = Math.round(128 * s)
+    const panelW    = Math.round(380 * s)
+    const panelH    = Math.round(400 * s)
+    const titleSize = Math.round(22 * s)
+    const numSize   = Math.round(28 * s)
+
+    const cx = width  / 2
+    const cy = height / 2 + Math.round(16 * s)
 
     // Dark overlay + panel
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.86)
-    this.add.rectangle(cx, height / 2, 380, 400, 0x0f172a).setStrokeStyle(3, 0xf59e0b)
+    this.add.rectangle(cx, height / 2, panelW, panelH, 0x0f172a).setStrokeStyle(3, 0xf59e0b)
 
     // Title
     this.add
-      .text(cx, cy - radius - 46, '¡GIRA LA RULETA!', {
+      .text(cx, cy - radius - Math.round(46 * s), '¡GIRA LA RULETA!', {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '22px',
+        fontSize: `${titleSize}px`,
         color: '#f59e0b',
         fontStyle: 'bold',
         stroke: '#78350f',
@@ -40,9 +48,8 @@ export class RouletteScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    // ── Spinning wheel container (this is what we rotate) ─────────────────
+    // Spinning wheel container
     const wheelContainer = this.add.container(cx, cy)
-
     const gfx = this.add.graphics()
     wheelContainer.add(gfx)
 
@@ -51,10 +58,9 @@ export class RouletteScene extends Phaser.Scene {
 
     for (let i = 0; i < totalQuestions; i++) {
       const startAngle = -Math.PI / 2 + i * sectorRad
-      const endAngle = startAngle + sectorRad
-      const color = SECTOR_COLORS[i % SECTOR_COLORS.length]
+      const endAngle   = startAngle + sectorRad
+      const color      = SECTOR_COLORS[i % SECTOR_COLORS.length]
 
-      // Sector fill
       gfx.fillStyle(color, 1)
       gfx.beginPath()
       gfx.moveTo(0, 0)
@@ -62,20 +68,18 @@ export class RouletteScene extends Phaser.Scene {
       gfx.closePath()
       gfx.fillPath()
 
-      // Separator lines
       gfx.lineStyle(2, 0xffffff, 0.55)
       gfx.beginPath()
       gfx.moveTo(0, 0)
       gfx.lineTo(Math.cos(startAngle) * radius, Math.sin(startAngle) * radius)
       gfx.strokePath()
 
-      // Number text
       const midAngle = startAngle + sectorRad / 2
-      const tr = radius * 0.64
+      const tr  = radius * 0.64
       const txt = this.add
         .text(Math.cos(midAngle) * tr, Math.sin(midAngle) * tr, `${i + 1}`, {
           fontFamily: 'Exo 2, system-ui',
-          fontSize: '28px',
+          fontSize: `${numSize}px`,
           color: '#ffffff',
           fontStyle: 'bold',
           stroke: '#00000088',
@@ -87,50 +91,45 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     // Outer gold ring
-    gfx.lineStyle(5, 0xf59e0b, 1)
+    gfx.lineStyle(Math.round(5 * s), 0xf59e0b, 1)
     gfx.strokeCircle(0, 0, radius)
 
     // Center pin
-    gfx.fillStyle(0xffffff, 1)
-    gfx.fillCircle(0, 0, 20)
-    gfx.fillStyle(0x0f172a, 1)
-    gfx.fillCircle(0, 0, 14)
-    gfx.fillStyle(0xf59e0b, 1)
-    gfx.fillCircle(0, 0, 7)
+    gfx.fillStyle(0xffffff, 1); gfx.fillCircle(0, 0, Math.round(20 * s))
+    gfx.fillStyle(0x0f172a,  1); gfx.fillCircle(0, 0, Math.round(14 * s))
+    gfx.fillStyle(0xf59e0b,  1); gfx.fillCircle(0, 0, Math.round(7  * s))
 
-    // ── Fixed pointer (triangle pointing down toward wheel) ───────────────
+    // Pointer triangle
+    const ptrSize = Math.round(14 * s)
     const ptr = this.add.graphics()
     ptr.fillStyle(0xfbbf24, 1)
     ptr.fillTriangle(
-      cx,      cy - radius + 6,   // tip (inside wheel edge)
-      cx - 14, cy - radius - 22,  // top-left
-      cx + 14, cy - radius - 22,  // top-right
+      cx,           cy - radius + Math.round(6 * s),
+      cx - ptrSize, cy - radius - Math.round(22 * s),
+      cx + ptrSize, cy - radius - Math.round(22 * s),
     )
     ptr.lineStyle(2, 0xffffff, 0.9)
     ptr.strokeTriangle(
-      cx,      cy - radius + 6,
-      cx - 14, cy - radius - 22,
-      cx + 14, cy - radius - 22,
+      cx,           cy - radius + Math.round(6 * s),
+      cx - ptrSize, cy - radius - Math.round(22 * s),
+      cx + ptrSize, cy - radius - Math.round(22 * s),
     )
 
-    // ── Result label (shown after spin) ───────────────────────────────────
+    // Result label
     const resultTxt = this.add
-      .text(cx, cy + radius + 28, '', {
+      .text(cx, cy + radius + Math.round(28 * s), '', {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '20px',
+        fontSize: `${Math.round(20 * s)}px`,
         color: '#fbbf24',
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
       .setAlpha(0)
 
-    // ── Calculate final wheel angle ───────────────────────────────────────
-    // Pointer sits at top (world -90°). Sector i midpoint, before rotation,
-    // is at -90° + (i+0.5)*(360/N)°. To bring sector selectedIndex to the top:
-    // container.angle = -(selectedIndex + 0.5) * (360/N)  mod 360
+    // Spin animation
     const sectorDeg = 360 / totalQuestions
-    const Rfinal = (360 - (selectedIndex + 0.5) * sectorDeg) % 360
-    const Rtotal = 360 * 6 + Rfinal   // 6 full spins for drama
+    const Rfinal    = (360 - (selectedIndex + 0.5) * sectorDeg) % 360
+    const Rtotal    = 360 * 6 + Rfinal
 
     this.time.delayedCall(350, () => {
       this.tweens.add({
@@ -144,16 +143,8 @@ export class RouletteScene extends Phaser.Scene {
         },
         onComplete: () => {
           resultTxt.setText(`¡Pregunta ${selectedNumber}!`)
-          this.tweens.add({ targets: resultTxt, alpha: 1, y: cy + radius + 28, duration: 320 })
-
-          // Pulse wheel once
-          this.tweens.add({
-            targets: wheelContainer,
-            scaleX: 1.07, scaleY: 1.07,
-            duration: 180, yoyo: true,
-          })
-
-          // Go to quiz after short pause
+          this.tweens.add({ targets: resultTxt, alpha: 1, y: cy + radius + Math.round(28 * s), duration: 320 })
+          this.tweens.add({ targets: wheelContainer, scaleX: 1.07, scaleY: 1.07, duration: 180, yoyo: true })
           this.time.delayedCall(1400, () => {
             this.cameras.main.fadeOut(260)
             this.cameras.main.once('camerafadeoutcomplete', () => {

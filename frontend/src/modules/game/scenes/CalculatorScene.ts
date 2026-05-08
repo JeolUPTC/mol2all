@@ -45,22 +45,23 @@ export class CalculatorScene extends Phaser.Scene {
 
     const { width, height } = this.cameras.main
 
-    // On small screens use a compact panel; on large screens keep original size
+    const hasPT      = this.showPT
+    const closeBtnH  = 40
+    const baseH      = data.onInsert ? (hasPT ? 430 : 390) : (hasPT ? 408 : 368)
+    const naturalH   = baseH + closeBtnH + GAP
+    const naturalW   = 296
+
+    // Scale so the panel always fits inside the canvas with 8px margin
+    const s      = Math.max(0.6, Math.min(1, (height - 16) / naturalH, (width - 16) / naturalW))
+    const panelW = Math.round(naturalW * s)
+    const panelH = Math.round(naturalH * s)
+
+    // Center horizontally on mobile; shift right on desktop so quiz is visible
     const isMobile = width < 600
-    const panelW = isMobile ? Math.min(296, width - 16) : 296
-
-    const hasPT = this.showPT
-    const closeBtnH = 40
-    const baseH = data.onInsert
-      ? (hasPT ? 430 : 390)
-      : (hasPT ? 408 : 368)
-    const panelH = baseH + (isMobile ? closeBtnH + GAP : 0)
-
-    // Always center horizontally; on desktop, shift right so quiz is still visible
     const cx = isMobile
       ? width / 2
       : Math.min(width / 2 + 200, width - panelW / 2 - 8)
-    const cy = Math.min(height / 2, height - panelH / 2 - 8)
+    const cy = Math.round(Math.min(height / 2, height - panelH / 2 - 8))
 
     // Full-screen dim so user knows calculator is a modal
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
@@ -113,21 +114,25 @@ export class CalculatorScene extends Phaser.Scene {
       })
       .setOrigin(1, 0.5)
 
-    // ── Button grid ───────────────────────────────────────────────────────
-    const gridW = 4 * BTN_W + 3 * GAP
-    const gridStartX = cx - gridW / 2 + BTN_W / 2
-    const gridStartY = cy - panelH / 2 + 108
+    // ── Button grid — sizes scale with panel ──────────────────────────────
+    const btnW = Math.round(BTN_W * s)
+    const btnH = Math.round(BTN_H * s)
+    const gap  = Math.max(2, Math.round(GAP * s))
+
+    const gridW      = 4 * btnW + 3 * gap
+    const gridStartX = cx - gridW / 2 + btnW / 2
+    const gridStartY = cy - panelH / 2 + Math.round(108 * s)
 
     ROWS.forEach((row, ri) => {
       row.forEach((key, ci) => {
-        const bx = gridStartX + ci * (BTN_W + GAP)
-        const by = gridStartY + ri * (BTN_H + GAP)
-        this.makeBtn(bx, by, key)
+        const bx = gridStartX + ci * (btnW + gap)
+        const by = gridStartY + ri * (btnH + gap)
+        this.makeBtn(bx, by, key, btnW, btnH)
       })
     })
 
     // ── Periodic table shortcut ───────────────────────────────────────────
-    const ptY = gridStartY + 5 * (BTN_H + GAP) + 8
+    const ptY = gridStartY + 5 * (btnH + gap) + 8
     if (this.showPT) {
       const ptBtn = this.add
         .text(cx, ptY, '⚛  Tabla periódica', {
@@ -193,17 +198,18 @@ export class CalculatorScene extends Phaser.Scene {
 
   // ── Button factory ────────────────────────────────────────────────────────
 
-  private makeBtn(x: number, y: number, key: string) {
+  private makeBtn(x: number, y: number, key: string, w = BTN_W, h = BTN_H) {
     const isOp = ['÷', '×', '−', '+', '=', 'C', '⌫', '(', ')'].includes(key)
     const isEq = key === '='
     const bgColor = isEq ? 0x0284c7 : isOp ? 0x1e3a5f : 0x1e293b
+    const fontSize = Math.max(10, Math.round(16 * (w / BTN_W)))
 
     const bg = this.add
-      .rectangle(x, y, BTN_W, BTN_H, bgColor)
+      .rectangle(x, y, w, h, bgColor)
       .setInteractive({ useHandCursor: true })
     this.add.text(x, y, key, {
       fontFamily: 'JetBrains Mono, monospace',
-      fontSize: '16px',
+      fontSize: `${fontSize}px`,
       color: isEq ? '#ffffff' : isOp ? '#7dd3fc' : '#f1f5f9',
       fontStyle: isEq ? 'bold' : 'normal',
     }).setOrigin(0.5)
