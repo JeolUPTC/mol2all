@@ -39,7 +39,8 @@ export class Player {
       }
     }
 
-    if (scene.sys.game.device.input.touch) {
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    if (isTouch) {
       this.buildTouchControls()
     }
   }
