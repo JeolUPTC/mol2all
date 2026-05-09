@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import type { Level, GameSession, Progress } from '@core/types/game.types'
+import type { GameSession, Progress } from '@core/types/game.types'
 
 interface GameState {
-  currentLevel: Level | null
   currentSession: GameSession | null
   allProgress: Progress[]
   lives: number
@@ -13,7 +12,6 @@ interface GameState {
   questionsTotal: number
   isPlaying: boolean
 
-  setCurrentLevel: (level: Level) => void
   setCurrentSession: (session: GameSession) => void
   setAllProgress: (progress: Progress[]) => void
   updateLives: (lives: number) => void
@@ -28,7 +26,6 @@ interface GameState {
 export const useGameStore = create<GameState>()(
   devtools(
     (set) => ({
-      currentLevel: null,
       currentSession: null,
       allProgress: [],
       lives: 3,
@@ -38,7 +35,6 @@ export const useGameStore = create<GameState>()(
       questionsTotal: 0,
       isPlaying: false,
 
-      setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setCurrentSession: (currentSession) => set({ currentSession }),
       setAllProgress: (allProgress) => set({ allProgress }),
       updateLives: (lives) => set({ lives }),

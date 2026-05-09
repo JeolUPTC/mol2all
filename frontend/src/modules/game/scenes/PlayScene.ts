@@ -1,6 +1,5 @@
 import Phaser from 'phaser'
 import { Player } from '../entities/Player'
-import { HUDSystem } from '../systems/HUDSystem'
 import { gameEventBus } from '../bridge/gameEventBus'
 import type { GameQuestion } from '../services/questions.service'
 
@@ -69,7 +68,6 @@ interface ResultConfig {
 
 export class PlayScene extends Phaser.Scene {
   private player!: Player
-  private hud!: HUDSystem
 
   private ground!: Phaser.Physics.Arcade.StaticGroup
   private platforms!: Phaser.Physics.Arcade.StaticGroup
@@ -180,7 +178,6 @@ export class PlayScene extends Phaser.Scene {
 
     this.player = new Player(this, 80, this.sy(500))
     this.cameras.main.startFollow(this.player.getSprite(), true, 0.12, 0.12)
-    this.hud = new HUDSystem(this, this.levelName, this.questions.length)
 
     // React HUD opens theory modal — just pause/resume Phaser, React handles the display
     const theoryHandler = () => { if (!this.isQuizActive) this.scene.pause('PlayScene') }
