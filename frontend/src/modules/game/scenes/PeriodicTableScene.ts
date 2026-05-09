@@ -98,9 +98,9 @@ const ELEMENTS: Element[] = [
   { sym:'Xe', name:'Xenón',      num:54, mass:131.293, col:18, row:5, type:'noble_gas' },
 ]
 
-const CELL_W = 38
-const CELL_H = 52
-const GAP    = 2
+const BASE_CELL_W = 38
+const BASE_CELL_H = 52
+const BASE_GAP    = 2
 
 export class PeriodicTableScene extends Phaser.Scene {
   private infoText!: Phaser.GameObjects.Text
@@ -114,33 +114,52 @@ export class PeriodicTableScene extends Phaser.Scene {
     this.onElementSelect = data.onElementSelect
 
     const { width, height } = this.cameras.main
-    const cx = width / 2
+    const cx = width  / 2
     const cy = height / 2
 
-    const gridW = 18 * CELL_W + 17 * GAP  // 718
-    const gridH = 5 * CELL_H + 4 * GAP    // 268
-    const panelW = gridW + 32              // 750
-    const panelH = gridH + 110             // header + info bar
+    // Natural panel dimensions (design reference)
+    const naturalGridW = 18 * BASE_CELL_W + 17 * BASE_GAP  // 718
+    const naturalGridH =  5 * BASE_CELL_H +  4 * BASE_GAP  // 268
+    const naturalPanelW = naturalGridW + 32                 // 750
+    const naturalPanelH = naturalGridH + 110                // ~378
+
+    // Scale to fit canvas with 8px margin on each side
+    const s = Math.max(0.38, Math.min(1,
+      (width  - 16) / naturalPanelW,
+      (height - 16) / naturalPanelH,
+    ))
+
+    const cellW  = Math.round(BASE_CELL_W * s)
+    const cellH  = Math.round(BASE_CELL_H * s)
+    const gap    = Math.max(1, Math.round(BASE_GAP * s))
+    const gridW  = 18 * cellW + 17 * gap
+    const gridH  =  5 * cellH +  4 * gap
+    const panelW = gridW + Math.round(32 * s)
+    const panelH = gridH + Math.round(110 * s)
+
+    const symSize  = Math.max(6,  Math.round(14 * s))
+    const numSize  = Math.max(5,  Math.round(7  * s))
+    const massSize = Math.max(5,  Math.round(7  * s))
+    const hdrSize  = Math.max(8,  Math.round(14 * s))
 
     // Overlay
-    this.add.rectangle(cx, cy, width, height, 0x000000, 0.80)
+    this.add.rectangle(cx, cy, width, height, 0x000000, 0.82)
 
     // Panel
-    const panel = this.add.rectangle(cx, cy, panelW, panelH, 0x0f172a)
-    panel.setStrokeStyle(2, 0x38bdf8)
+    this.add.rectangle(cx, cy, panelW, panelH, 0x0f172a).setStrokeStyle(2, 0x38bdf8)
 
     // Header
-    this.add.text(cx - panelW / 2 + 14, cy - panelH / 2 + 10, '⚛  Tabla Periódica', {
+    this.add.text(cx - panelW / 2 + Math.round(14 * s), cy - panelH / 2 + Math.round(8 * s), '⚛  Tabla Periódica', {
       fontFamily: 'Exo 2, system-ui',
-      fontSize: '14px',
+      fontSize: `${hdrSize}px`,
       color: '#38bdf8',
       fontStyle: 'bold',
     })
 
     const closeBtn = this.add
-      .text(cx + panelW / 2 - 12, cy - panelH / 2 + 10, '✕', {
+      .text(cx + panelW / 2 - Math.round(10 * s), cy - panelH / 2 + Math.round(8 * s), '✕', {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '16px',
+        fontSize: `${hdrSize}px`,
         color: '#64748b',
       })
       .setOrigin(1, 0)
@@ -149,87 +168,83 @@ export class PeriodicTableScene extends Phaser.Scene {
     closeBtn.on('pointerout',  () => closeBtn.setStyle({ color: '#64748b' }))
     closeBtn.on('pointerdown', () => this.scene.stop('PeriodicTableScene'))
 
-    // Grid origin (top-left of first cell)
+    // Grid origin
     const gridX0 = cx - gridW / 2
-    const gridY0 = cy - panelH / 2 + 38
+    const gridY0 = cy - panelH / 2 + Math.round(36 * s)
 
-    // Info bar below grid
-    const infoY = gridY0 + gridH + 14
+    // Info bar
+    const infoY = gridY0 + gridH + Math.round(10 * s)
     this.infoText = this.add
-      .text(cx, infoY, 'Hover sobre un elemento para ver detalles  •  Click para usar su masa molar', {
+      .text(cx, infoY, 'Toca un elemento para ver detalles y usar su masa molar', {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '10px',
+        fontSize: `${Math.max(7, Math.round(10 * s))}px`,
         color: '#475569',
         align: 'center',
+        wordWrap: { width: panelW - 16 },
       })
       .setOrigin(0.5, 0)
 
     // Draw elements
     ELEMENTS.forEach((el) => {
-      const ex = gridX0 + (el.col - 1) * (CELL_W + GAP)
-      const ey = gridY0 + (el.row - 1) * (CELL_H + GAP)
-      const cx2 = ex + CELL_W / 2
-      const cy2 = ey + CELL_H / 2
+      const ex  = gridX0 + (el.col - 1) * (cellW + gap)
+      const ey  = gridY0 + (el.row - 1) * (cellH + gap)
+      const cx2 = ex + cellW / 2
+      const cy2 = ey + cellH / 2
       const baseColor = TYPE_COLORS[el.type] ?? 0x334155
-      const darkColor  = Phaser.Display.Color.ValueToColor(baseColor).darken(55).color
+      const darkColor = Phaser.Display.Color.ValueToColor(baseColor).darken(55).color
 
       const bg = this.add
-        .rectangle(cx2, cy2, CELL_W, CELL_H, darkColor)
+        .rectangle(cx2, cy2, cellW, cellH, darkColor)
         .setStrokeStyle(1, baseColor)
         .setInteractive({ useHandCursor: true })
 
       // atomic number
-      this.add.text(ex + 2, ey + 2, String(el.num), {
+      this.add.text(ex + 1, ey + 1, String(el.num), {
         fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '7px',
+        fontSize: `${numSize}px`,
         color: '#94a3b8',
       })
 
       // symbol
-      this.add.text(cx2, cy2 - 4, el.sym, {
+      this.add.text(cx2, cy2 - Math.round(4 * s), el.sym, {
         fontFamily: 'JetBrains Mono, monospace',
-        fontSize: el.sym.length > 2 ? '11px' : '14px',
+        fontSize: `${el.sym.length > 2 ? Math.max(6, Math.round(11 * s)) : symSize}px`,
         color: '#f1f5f9',
         fontStyle: 'bold',
       }).setOrigin(0.5, 0.5)
 
       // atomic mass
-      this.add.text(cx2, ey + CELL_H - 10, el.mass.toFixed(el.mass < 10 ? 3 : el.mass < 100 ? 2 : 1), {
+      this.add.text(cx2, ey + cellH - Math.round(9 * s), el.mass.toFixed(el.mass < 10 ? 3 : el.mass < 100 ? 2 : 1), {
         fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '7px',
+        fontSize: `${massSize}px`,
         color: '#64748b',
       }).setOrigin(0.5, 0)
 
       bg.on('pointerover', () => {
         bg.setFillStyle(baseColor)
-        this.infoText.setText(
-          `${el.name}  (${el.sym})  —  Masa atómica: ${el.mass} g/mol  —  ${TYPE_LABELS[el.type] ?? el.type}`,
-        )
+        this.infoText.setText(`${el.name}  (${el.sym})  —  ${el.mass} g/mol  —  ${TYPE_LABELS[el.type] ?? el.type}`)
         this.infoText.setStyle({ color: '#e2e8f0' })
       })
       bg.on('pointerout', () => {
         bg.setFillStyle(darkColor)
-        this.infoText.setText('Hover sobre un elemento para ver detalles  •  Click para usar su masa molar')
+        this.infoText.setText('Toca un elemento para ver detalles y usar su masa molar')
         this.infoText.setStyle({ color: '#475569' })
       })
-      bg.on('pointerdown', () => {
-        if (this.onElementSelect) {
-          this.onElementSelect(el.mass)
-        }
-      })
+      bg.on('pointerdown', () => { if (this.onElementSelect) this.onElementSelect(el.mass) })
     })
 
     // Legend
-    const legendY = infoY + 26
+    const legendY = infoY + Math.round(24 * s)
     const legendTypes = ['alkali_metal', 'alkaline_earth', 'transition_metal', 'post_transition', 'metalloid', 'nonmetal', 'halogen', 'noble_gas']
     const legendSpacing = panelW / legendTypes.length
     legendTypes.forEach((type, i) => {
-      const lx = cx - panelW / 2 + legendSpacing * i + legendSpacing / 2
+      const lx    = cx - panelW / 2 + legendSpacing * i + legendSpacing / 2
       const color = TYPE_COLORS[type]
-      this.add.rectangle(lx - 18, legendY + 4, 10, 10, color)
-      this.add.text(lx - 12, legendY, TYPE_LABELS[type].split(' ')[0], {
+      const dot   = Math.max(6, Math.round(10 * s))
+      this.add.rectangle(lx - Math.round(14 * s), legendY + dot / 2, dot, dot, color)
+      this.add.text(lx - Math.round(8 * s), legendY, TYPE_LABELS[type].split(' ')[0], {
         fontFamily: 'Exo 2, system-ui',
-        fontSize: '8px',
+        fontSize: `${Math.max(6, Math.round(8 * s))}px`,
         color: '#64748b',
       })
     })

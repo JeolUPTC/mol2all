@@ -46,18 +46,18 @@ export class Player {
 
   private buildTouchControls() {
     const { width, height } = this.scene.scale
-    const R = 40
-    const Y = height - 52
+    const R = 26
+    const Y = height - 36
     const DEPTH = 30
 
     const makeBtn = (cx: number, color: number, label: string) => {
       const bg = this.scene.add
-        .circle(cx, Y, R, color, 0.45)
+        .circle(cx, Y, R, color, 0.40)
         .setScrollFactor(0)
         .setDepth(DEPTH)
         .setInteractive()
       const lbl = this.scene.add
-        .text(cx, Y, label, { fontSize: '28px', color: '#ffffff' })
+        .text(cx, Y, label, { fontSize: '18px', color: '#ffffff' })
         .setOrigin(0.5)
         .setScrollFactor(0)
         .setDepth(DEPTH + 1)
@@ -65,9 +65,9 @@ export class Player {
       return bg
     }
 
-    const leftBtn  = makeBtn(62,        0x4f46e5, '◀')
-    const rightBtn = makeBtn(155,       0x4f46e5, '▶')
-    const jumpBtn  = makeBtn(width - 65, 0x059669, '▲')
+    const leftBtn  = makeBtn(44,         0x4f46e5, '◀')
+    const rightBtn = makeBtn(110,        0x4f46e5, '▶')
+    const jumpBtn  = makeBtn(width - 50, 0x059669, '▲')
 
     const bind = (
       btn: Phaser.GameObjects.Arc,
