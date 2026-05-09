@@ -35,8 +35,9 @@ backend/prisma/migrations/dev.db
 # Coverage
 coverage/
 
-# Claude Code local data
+# IDE / local tooling
 .claude/
+MOL2ALL_PROJECT_CONTEXT.md
 
 # Documentation (manuals and generation scripts — delivered separately)
 docs/
