@@ -232,7 +232,6 @@ export class PlayScene extends Phaser.Scene {
 
   update() {
     this.player.update()
-    this.hud.update(this.lives, this.score, this.energy, this.answeredCount, this.questions.length)
     this.checkHazardFloor()
     this.updateBouncers()
   }
@@ -396,8 +395,6 @@ export class PlayScene extends Phaser.Scene {
       }
     }
 
-    this.hud.update(this.lives, this.score, this.energy, this.answeredCount, this.questions.length)
-    this.hud.punchScore()
     this.time.delayedCall(750, () => { this.isQuizActive = false; this.player.isControlEnabled = true })
   }
 
