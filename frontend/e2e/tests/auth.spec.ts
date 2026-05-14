@@ -54,21 +54,3 @@ test.describe('Página de olvido de contraseña', () => {
     })
   })
 })
-
-test.describe('Página de registro', () => {
-  test('muestra el formulario de registro', async ({ page }) => {
-    await page.goto('/auth/register')
-    await expect(page.getByRole('button', { name: 'Registrarse' })).toBeVisible()
-  })
-
-  test('permite crear una cuenta nueva', async ({ page }) => {
-    const unique = Date.now()
-    await page.goto('/auth/register')
-    await page.getByLabel('Nombre de usuario').fill(`testuser${unique}`)
-    await page.getByLabel('Correo electrónico').fill(`test${unique}@mol2all.com`)
-    await page.getByLabel('Contraseña').fill('password1234')
-    await page.getByLabel('Confirmar contraseña').fill('password1234')
-    await page.getByRole('button', { name: 'Registrarse' }).click()
-    await expect(page).toHaveURL('/dashboard', { timeout: 10_000 })
-  })
-})

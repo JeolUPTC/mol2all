@@ -69,7 +69,11 @@ apiClient.interceptors.response.use(
       return apiClient(original)
     } catch (err) {
       processQueue(err, null)
-      useAuthStore.getState().logout()
+      // Only force logout if the user had an established session; skip if this
+      // is just the initial session-restore attempt racing with an explicit login.
+      if (useAuthStore.getState().isAuthenticated) {
+        useAuthStore.getState().logout()
+      }
       return Promise.reject(err)
     } finally {
       isRefreshing = false

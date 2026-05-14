@@ -101,15 +101,19 @@ describe('SessionsService', () => {
       await expect(service.create('user-1', { levelId: 'l2' })).rejects.toThrow(ForbiddenException)
     })
 
-    it('throws ForbiddenException when previous level is COMPLETED with 0 stars', async () => {
+    it('creates session when previous level is COMPLETED with 0 stars', async () => {
       prisma.level.findUniqueOrThrow.mockResolvedValue(makeLevel('l2', 2))
       prisma.level.findFirst.mockResolvedValue(makeLevel('l1', 1))
       prisma.progress.findUnique.mockResolvedValue(makeProgress(0, 100, 'COMPLETED'))
+      prisma.gameSession.create.mockResolvedValue(makeSession({ levelId: 'l2' }))
 
-      await expect(service.create('user-1', { levelId: 'l2' })).rejects.toThrow(ForbiddenException)
+      const session = await service.create('user-1', { levelId: 'l2' })
+
+      expect(session).toBeDefined()
+      expect(prisma.gameSession.create).toHaveBeenCalled()
     })
 
-    it('creates session when prerequisite is met (COMPLETED, stars ≥ 1)', async () => {
+    it('creates session when prerequisite is met (COMPLETED)', async () => {
       prisma.level.findUniqueOrThrow.mockResolvedValue(makeLevel('l2', 2))
       prisma.level.findFirst.mockResolvedValue(makeLevel('l1', 1))
       prisma.progress.findUnique.mockResolvedValue(makeProgress(2, 300, 'COMPLETED'))

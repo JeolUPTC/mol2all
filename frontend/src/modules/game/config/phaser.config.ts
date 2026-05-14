@@ -4,8 +4,6 @@ import { MenuScene } from '../scenes/MenuScene'
 import { GameScene } from '../scenes/GameScene'
 import { PlayScene } from '../scenes/PlayScene'
 import { RouletteScene } from '../scenes/RouletteScene'
-import { QuizScene } from '../scenes/QuizScene'
-import { ResultScene } from '../scenes/ResultScene'
 import { CalculatorScene } from '../scenes/CalculatorScene'
 import { PeriodicTableScene } from '../scenes/PeriodicTableScene'
 
@@ -27,5 +25,5 @@ export const createPhaserConfig = (parent: string): Phaser.Types.Core.GameConfig
     antialias: true,
     roundPixels: true,
   },
-  scene: [BootScene, MenuScene, GameScene, PlayScene, RouletteScene, QuizScene, ResultScene, CalculatorScene, PeriodicTableScene],
+  scene: [BootScene, MenuScene, GameScene, PlayScene, RouletteScene, CalculatorScene, PeriodicTableScene],
 })

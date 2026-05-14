@@ -4,12 +4,23 @@ import { questionsService, type GameQuestion } from '../services/questions.servi
 import type { LevelConfig } from '../PhaserGame'
 
 const TOPIC_LABELS: Record<string, string> = {
-  molar_mass: 'Masa Molar',
-  balancing: 'Balanceo de Ecuaciones',
-  stoichiometry: 'Estequiometría',
+  molar_mass:       'Masa Molar',
+  balancing:        'Balanceo de Ecuaciones',
+  stoichiometry:    'Estequiometría',
   limiting_reagent: 'Reactivo Límite',
-  yield: 'Rendimiento',
+  yield:            'Rendimiento',
+  mixed:            'Temas Mixtos',
 }
+
+const TOPIC_SHORT: Record<string, string> = {
+  molar_mass:       'Masa M.',
+  balancing:        'Balanceo',
+  stoichiometry:    'Estoq.',
+  limiting_reagent: 'React. L.',
+  yield:            'Rendim.',
+}
+
+const MIXED_TOPICS = ['molar_mass', 'balancing', 'stoichiometry', 'limiting_reagent', 'yield'] as const
 
 const DIFFICULTY_LABELS: Record<number, string> = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado' }
 
@@ -20,25 +31,41 @@ interface PreGameScreenProps {
 }
 
 export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProps) {
-  const theory = THEORY[levelConfig.topic] ?? DEFAULT_THEORY
+  const isMixed = levelConfig.topic === 'mixed'
+  const [activeTab, setActiveTab] = useState<string>(isMixed ? 'molar_mass' : levelConfig.topic)
+  const theory = THEORY[isMixed ? activeTab : levelConfig.topic] ?? DEFAULT_THEORY
+
   const [questions, setQuestions] = useState<GameQuestion[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    questionsService
-      .generateBatch(levelConfig.topic, levelConfig.difficulty, levelConfig.totalQuestions)
+    setLoading(true)
+    setLoadError(false)
+    setQuestions(null)
+
+    const load = isMixed
+      ? questionsService.generateMixed(levelConfig.totalQuestions)
+      : questionsService.generateBatch(
+          levelConfig.topic as Parameters<typeof questionsService.generateBatch>[0],
+          levelConfig.difficulty,
+          levelConfig.totalQuestions,
+        )
+
+    load
       .then((qs) => { if (mounted) { setQuestions(qs); setLoading(false) } })
-      .catch(() => { if (mounted) setLoading(false) })
+      .catch(() => { if (mounted) { setLoadError(true); setLoading(false) } })
+
     return () => { mounted = false }
-  }, [levelConfig])
+  }, [levelConfig, isMixed])
 
   const handlePlay = () => { if (questions) onPlay(questions) }
 
   return (
     <div className="flex flex-1 min-h-0 flex-col bg-slate-950 text-slate-100">
 
-      {/* ── Top bar ──────────────────────────────────────────────────── */}
+      {/* ── Top bar ─────────────────────────────────────────────────── */}
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-3 md:gap-3 md:px-5">
         <button
           onClick={onExit}
@@ -52,15 +79,37 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
         </span>
       </header>
 
-      {/* ── Two-column body — always side by side, proportional widths ── */}
+      {/* ── Two-column body ─────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 gap-3 overflow-hidden p-3">
 
-        {/* LEFT: theory — flex-1, scrollable */}
+        {/* LEFT: theory panel */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 md:p-6 md:space-y-5">
+
+          {/* Topic tabs — only for mixed levels */}
+          {isMixed && (
+            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-700 bg-slate-900/80 px-3 pt-2">
+              {MIXED_TOPICS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setActiveTab(t)}
+                  className={`shrink-0 rounded-t-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeTab === t
+                      ? 'border border-b-0 border-slate-600 bg-slate-800 text-sky-400'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {TOPIC_SHORT[t]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto space-y-4 p-4 md:space-y-5 md:p-6">
 
             <div>
-              <h2 className="font-display text-xl font-bold text-sky-400 md:text-3xl">📖 {theory.title}</h2>
+              <h2 className="font-display text-xl font-bold text-sky-400 md:text-3xl">
+                📖 {theory.title}
+              </h2>
               <p className="mt-1 text-sm text-slate-300 md:text-lg">{theory.subtitle}</p>
             </div>
 
@@ -68,13 +117,11 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
 
             <p className="text-xs leading-relaxed text-slate-300 md:text-base">{theory.concept}</p>
 
-            {/* Formula */}
             <div className="rounded-xl border-2 border-sky-800 bg-slate-950 px-3 py-3 text-center md:px-6 md:py-5">
               <p className="font-mono text-sm font-bold text-sky-300 md:text-2xl">{theory.formula}</p>
               <p className="mt-1 text-xs text-slate-400">{theory.formulaLabel}</p>
             </div>
 
-            {/* Example */}
             <div className="rounded-lg border border-yellow-800/40 bg-yellow-950/20 px-3 py-3 md:px-5 md:py-4">
               <p className="mb-1 text-xs font-bold uppercase tracking-widest text-yellow-400">
                 💡 Ejemplo práctico
@@ -82,7 +129,6 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
               <p className="font-mono text-xs text-yellow-200 md:text-xl">{theory.example}</p>
             </div>
 
-            {/* Steps */}
             <div>
               <p className="mb-2 text-sm font-bold text-emerald-400">✦ Pasos clave</p>
               <ol className="space-y-2">
@@ -100,14 +146,13 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
           </div>
         </div>
 
-        {/* RIGHT: info + play — 32% width, scrollable so button is always reachable */}
+        {/* RIGHT: info + play */}
         <div className="flex w-[32%] shrink-0 flex-col gap-3 overflow-y-auto">
 
-          {/* Info card */}
-          <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3 flex flex-col gap-3 md:p-6 md:gap-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-3 md:gap-4 md:p-6">
             <div>
               <p className="text-xs uppercase tracking-widest text-slate-500">Nivel</p>
-              <h3 className="font-display mt-0.5 text-sm font-bold text-slate-100 leading-tight md:text-2xl">
+              <h3 className="font-display mt-0.5 text-sm font-bold leading-tight text-slate-100 md:text-2xl">
                 {levelConfig.levelName}
               </h3>
             </div>
@@ -137,19 +182,19 @@ export function PreGameScreen({ levelConfig, onPlay, onExit }: PreGameScreenProp
             </div>
           </div>
 
-          {/* Status */}
           <div className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-center text-xs md:p-3 md:text-sm">
             {loading ? (
               <span className="flex items-center justify-center gap-1.5 text-slate-400">
                 <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
                 <span className="hidden md:inline">Preparando...</span>
               </span>
+            ) : loadError ? (
+              <span className="font-semibold text-red-400">✗ Error al cargar preguntas</span>
             ) : (
               <span className="font-semibold text-emerald-400">✓ Listas</span>
             )}
           </div>
 
-          {/* Play button */}
           <button
             onClick={handlePlay}
             disabled={loading || !questions}

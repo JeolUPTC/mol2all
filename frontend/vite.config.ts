@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'favicon.svg', 'robots.txt', 'apple-touch-icon-180x180.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'MOL2ALL — Estequiometría',
         short_name: 'MOL2ALL',

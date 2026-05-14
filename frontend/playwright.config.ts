@@ -16,16 +16,9 @@ export default defineConfig({
   },
 
   projects: [
-    // Setup: login as student, teacher, admin and persist cookies
-    {
-      name: 'setup',
-      testMatch: '**/auth.setup.ts',
-    },
-    // All tests depend on auth setup
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup'],
     },
   ],
 

@@ -73,5 +73,6 @@ export const ENDPOINTS = {
     analytics: '/admin/analytics',
     seedReset: '/admin/seed/reset',
     seedDemo:  '/admin/seed/demo',
+    seedE2e:   '/admin/seed/e2e',
   },
 } as const

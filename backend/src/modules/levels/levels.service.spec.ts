@@ -95,7 +95,7 @@ describe('LevelsService', () => {
       expect(result[1].isUnlocked).toBe(false)
     })
 
-    it('locks level 2 when level 1 is COMPLETED with 0 stars', async () => {
+    it('unlocks level 2 when level 1 is COMPLETED with 0 stars', async () => {
       const [l1, l2] = [makeLevel({ id: 'l1', order: 1 }), makeLevel({ id: 'l2', order: 2 })]
       prisma.level.findMany.mockResolvedValue([l1, l2])
       prisma.progress.findMany.mockResolvedValue([
@@ -104,7 +104,7 @@ describe('LevelsService', () => {
 
       const result = await service.findAllWithProgress('user-1')
 
-      expect(result[1].isUnlocked).toBe(false)
+      expect(result[1].isUnlocked).toBe(true)
     })
 
     it('unlocks level 2 when level 1 is COMPLETED with ≥1 star', async () => {

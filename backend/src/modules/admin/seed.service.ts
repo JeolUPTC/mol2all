@@ -141,6 +141,33 @@ export class SeedService {
     return { message: 'Datos demo cargados correctamente.', details }
   }
 
+  // ── E2E ────────────────────────────────────────────────────────────────────
+
+  async seedE2e(): Promise<{ message: string; details: string[] }> {
+    const details: string[] = []
+
+    const users = [
+      { email: 'estudiante@mol2all.com', username: 'estudiante_e2e', displayName: 'Estudiante E2E', role: 'STUDENT' as const, password: 'student1234' },
+      { email: 'docente@mol2all.com',    username: 'docente_e2e',    displayName: 'Docente E2E',    role: 'TEACHER' as const, password: 'teacher1234' },
+      { email: 'admin@mol2all.com',      username: 'admin_mol2all',  displayName: 'Admin E2E',      role: 'ADMIN'   as const, password: 'admin1234'  },
+    ]
+
+    for (const u of users) {
+      const hashed = await bcrypt.hash(u.password, SALT_ROUNDS)
+      await this.prisma.user.upsert({
+        where:  { email: u.email },
+        create: {
+          email: u.email, username: u.username, password: hashed, role: u.role,
+          profile: { create: { displayName: u.displayName } },
+        },
+        update: { password: hashed, isActive: true },
+      })
+      details.push(`${u.role} ${u.email} listo`)
+    }
+
+    return { message: 'Usuarios de prueba E2E creados/actualizados.', details }
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private async createUser(

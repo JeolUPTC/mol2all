@@ -328,4 +328,11 @@ export class AdminController {
   seedDemo() {
     return this.seedService.seedDemo()
   }
+
+  @Post('seed/e2e')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Crear/actualizar usuarios fijos para tests E2E de Playwright' })
+  seedE2e() {
+    return this.seedService.seedE2e()
+  }
 }

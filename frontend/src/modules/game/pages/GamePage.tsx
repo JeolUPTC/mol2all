@@ -68,6 +68,12 @@ export function GamePage() {
     setGameState('playing')
   }, [startGame])
 
+  // Retry: go back to PreGameScreen (PhaserGame unmounts → Phaser destroyed cleanly)
+  const handleRetry = useCallback(() => {
+    sessionCompletedRef.current = false
+    setGameState('pregame')
+  }, [])
+
   // Save session result + refresh profile
   const handleComplete = useCallback(
     async (score: number, stars: number) => {
@@ -128,6 +134,7 @@ export function GamePage() {
         <PhaserGame
           levelConfig={{ ...levelConfig, questions }}
           onComplete={handleComplete}
+          onRetry={handleRetry}
         />
       </div>
     </div>

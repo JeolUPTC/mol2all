@@ -1,3 +1,5 @@
+import type { GameQuestion } from '../services/questions.service'
+
 type EventMap = {
   'answer:submitted': { questionId: string; isCorrect: boolean; timeSpent: number }
   'life:lost': { livesRemaining: number }
@@ -6,7 +8,10 @@ type EventMap = {
   'question:answered': { count: number; total: number }
   'level:complete': { score: number; stars: number; timeSpent: number }
   'level:failed': { reason: string }
+  'level:result': { score: number; stars: number; win: boolean; levelConfig?: { topic: string; difficulty: number; levelName: string; totalQuestions: number; levelOrder: number } }
   'scene:ready': { sceneName: string }
+  'quiz:open': { question: GameQuestion; onAnswer: (isCorrect: boolean, timeSpent: number) => void }
+  'scene:launch': { key: string; data?: unknown }
 }
 
 type Listener<T> = (payload: T) => void

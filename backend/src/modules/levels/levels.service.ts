@@ -22,7 +22,7 @@ export class LevelsService {
       const previousProgress = previousLevel ? progressMap.get(previousLevel.id) : null
       const isUnlocked =
         level.order === 1 ||
-        (previousProgress?.status === 'COMPLETED' && (previousProgress.stars ?? 0) >= 1)
+        previousProgress?.status === 'COMPLETED'
       return { ...level, progress, isUnlocked }
     })
   }

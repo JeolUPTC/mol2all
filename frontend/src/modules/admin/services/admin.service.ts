@@ -249,4 +249,9 @@ export const adminService = {
     const { data } = await apiClient.post<ApiResponse<{ message: string; details: string[] }>>(ENDPOINTS.admin.seedDemo)
     return data.data
   },
+
+  seedE2e: async (): Promise<{ message: string; details: string[] }> => {
+    const { data } = await apiClient.post<ApiResponse<{ message: string; details: string[] }>>(ENDPOINTS.admin.seedE2e)
+    return data.data
+  },
 }

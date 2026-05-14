@@ -5,6 +5,7 @@ export type LevelTopic =
   | 'stoichiometry'
   | 'limiting_reagent'
   | 'yield'
+  | 'mixed'
 
 export interface Level {
   id: string

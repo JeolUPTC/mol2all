@@ -3,6 +3,8 @@ import Phaser from 'phaser'
 import { useGameStore } from '@stores/gameStore'
 import { gameEventBus } from './bridge/gameEventBus'
 import { createPhaserConfig } from './config/phaser.config'
+import { QuizOverlay } from './components/QuizOverlay'
+import { ResultOverlay, type ResultData } from './components/ResultOverlay'
 import type { LevelTopic } from '@core/types/game.types'
 import type { GameQuestion } from './services/questions.service'
 
@@ -20,6 +22,7 @@ export interface LevelConfig {
 interface PhaserGameProps {
   levelConfig?: LevelConfig
   onComplete?: (score: number, stars: number) => void
+  onRetry?: (levelConfig: ResultData['levelConfig']) => void
 }
 
 function useIsPortraitMobile() {
@@ -50,9 +53,18 @@ function useIsPortraitMobile() {
   return portrait
 }
 
-export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
+interface QuizData {
+  question: GameQuestion
+  startTime: number
+  onAnswer: (isCorrect: boolean, timeSpent: number) => void
+}
+
+export function PhaserGame({ levelConfig, onComplete, onRetry }: PhaserGameProps) {
   const { updateLives, updateScore, updateEnergy, updateQuestionsAnswered, endGame } = useGameStore()
   const isPortrait = useIsPortraitMobile()
+  const [quizData, setQuizData] = useState<QuizData | null>(null)
+  const [resultData, setResultData] = useState<ResultData | null>(null)
+  const gameRef = useRef<Phaser.Game | null>(null)
 
   const onCompleteRef = useRef(onComplete)
   useEffect(() => {
@@ -71,6 +83,7 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
         },
       },
     })
+    gameRef.current = game
 
     const unsubScore    = gameEventBus.on('score:updated',      ({ score }) => updateScore(score))
     const unsubLives    = gameEventBus.on('life:lost',           ({ livesRemaining }) => updateLives(livesRemaining))
@@ -78,18 +91,49 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
     const unsubQA       = gameEventBus.on('question:answered',   ({ count, total }) => updateQuestionsAnswered(count, total))
     const unsubComplete = gameEventBus.on('level:complete',      ({ score, stars }) => { endGame(); onCompleteRef.current?.(score, stars) })
     const unsubFailed   = gameEventBus.on('level:failed',        () => endGame())
+    const unsubResult   = gameEventBus.on('level:result',        (data) => setResultData(data))
+    const unsubQuiz     = gameEventBus.on('quiz:open', ({ question, onAnswer }) => {
+      setQuizData({
+        question,
+        startTime: Date.now(),
+        onAnswer: (isCorrect, timeSpent) => {
+          onAnswer(isCorrect, timeSpent)
+          setQuizData(null)
+        },
+      })
+    })
+    const unsubLaunch   = gameEventBus.on('scene:launch', ({ key, data }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(gameRef.current?.scene as any)?.launch?.(key, data)
+    })
 
     return () => {
       game.destroy(true)
+      gameRef.current = null
       unsubScore()
       unsubLives()
       unsubEnergy()
       unsubQA()
       unsubComplete()
       unsubFailed()
+      unsubResult()
+      unsubQuiz()
+      unsubLaunch()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const handleRetry = (levelConfig?: ResultData['levelConfig']) => {
+    setResultData(null)
+    // Delegate to GamePage — it will unmount PhaserGame (destroying Phaser cleanly)
+    // and show the React PreGameScreen with fresh questions, exactly like first entry.
+    onRetry?.(levelConfig)
+  }
+
+  const handleExitToMenu = () => {
+    setResultData(null)
+    window.dispatchEvent(new CustomEvent('mol2all:game:exit'))
+  }
 
   // Always keep the Phaser canvas mounted — unmounting it while Phaser is running
   // leaves the game loop attached to a detached canvas and causes scroll-lock bugs.
@@ -111,6 +155,20 @@ export function PhaserGame({ levelConfig, onComplete }: PhaserGameProps) {
             Gira tu móvil para jugar.
           </p>
         </div>
+      )}
+      {quizData && !isPortrait && (
+        <QuizOverlay
+          question={quizData.question}
+          startTime={quizData.startTime}
+          onAnswer={quizData.onAnswer}
+        />
+      )}
+      {resultData && (
+        <ResultOverlay
+          data={resultData}
+          onRetry={handleRetry}
+          onExit={handleExitToMenu}
+        />
       )}
     </div>
   )

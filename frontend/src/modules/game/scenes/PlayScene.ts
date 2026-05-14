@@ -20,6 +20,18 @@ const PORTAL_POSITIONS: { x: number; y: number }[] = [
   { x: 1524, y: 370 },
 ]
 
+// Safe respawn after wrong answer: portal 0 → game start; portal N → above previous platform.
+// y is design-space (will be passed through sy()). Player drops from above onto the platform.
+// Respawn AFTER the previous portal so the player doesn't have to re-pass it.
+// x values are just to the right of each portal on its platform; y drops from above.
+const PORTAL_RESPAWN: { x: number; y: number }[] = [
+  { x: 80,   y: 500 },  // portal 0 → game start (no previous)
+  { x: 350,  y: 380 },  // portal 1 → after portal 0 (x=284) on platform 0 right tile
+  { x: 668,  y: 340 },  // portal 2 → after portal 1 (x=604) on platform 1 right tile
+  { x: 968,  y: 380 },  // portal 3 → after portal 2 (x=904) on platform 2 right tile
+  { x: 1288, y: 316 },  // portal 4 → after portal 3 (x=1224) on platform 3 right tile
+]
+
 const PLATFORMS: { x: number; y: number; tiles: number }[] = [
   { x: 220, y: 456, tiles: 2 },
   { x: 540, y: 416, tiles: 2 },
@@ -63,7 +75,7 @@ interface PlaySceneData {
 }
 
 interface ResultConfig {
-  topic: string; difficulty: number; levelName: string; totalQuestions: number
+  topic: string; difficulty: number; levelName: string; totalQuestions: number; levelOrder: number
 }
 
 export class PlayScene extends Phaser.Scene {
@@ -269,9 +281,11 @@ export class PlayScene extends Phaser.Scene {
       const portal = this.portalGroup.create(pos.x, this.sy(pos.y), 'portal-closed') as Phaser.Physics.Arcade.Image
       portal.setData('index', i).setDepth(4).setSize(44, 100).refreshBody()
 
-      this.add.text(pos.x, this.sy(pos.y) - this.sy(70), '?', {
-        fontFamily: 'Exo 2, system-ui', fontSize: '22px', color: '#c4b5fd', fontStyle: 'bold',
+      const qMark = this.add.text(pos.x, this.sy(pos.y) - this.sy(62), '?', {
+        fontFamily: 'Exo 2, system-ui', fontSize: '48px', color: '#ef4444', fontStyle: 'bold',
+        stroke: '#7f1d1d', strokeThickness: 4,
       }).setOrigin(0.5).setDepth(5)
+      this.tweens.add({ targets: qMark, scaleX: 1.18, scaleY: 1.18, duration: 550 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
 
       this.tweens.add({ targets: portal, scaleX: 1.04, scaleY: 1.02, duration: 1000 + i * 140, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     })
@@ -351,13 +365,12 @@ export class PlayScene extends Phaser.Scene {
           onAnswer,
         })
       } else {
-        this.scene.launch('QuizScene', { question, onAnswer })
+        gameEventBus.emit('quiz:open', { question, onAnswer })
       }
     })
   }
 
   private handleAnswer(isCorrect: boolean, _timeSpent: number, portalIndex: number, questionIndex: number) {
-    this.scene.stop('QuizScene')
     this.scene.resume('PlayScene')
 
     if (isCorrect) {
@@ -386,10 +399,19 @@ export class PlayScene extends Phaser.Scene {
       gameEventBus.emit('life:lost', { livesRemaining: this.lives })
       gameEventBus.emit('energy:changed', { energy: this.energy })
 
+      // Teleport player to the previous platform (or game start for portal 0).
+      // Velocity knockback doesn't work: Player.update() zeroes vx every frame
+      // while isControlEnabled is false.
+      const resp = PORTAL_RESPAWN[portalIndex] ?? { x: 80, y: 500 }
+      const sprite = this.player.getSprite()
+      sprite.setPosition(resp.x, this.sy(resp.y))
+      sprite.setVelocity(0, 0)
+
       if (this.lives <= 0) {
         this.time.delayedCall(900, () => {
           gameEventBus.emit('level:failed', { reason: 'Sin vidas' })
-          this.scene.start('ResultScene', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+          gameEventBus.emit('level:result', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+          this.scene.pause('PlayScene')
         })
         return
       }
@@ -429,13 +451,14 @@ export class PlayScene extends Phaser.Scene {
     this.cameras.main.shake(220, 0.007)
     this.time.delayedCall(420, () => this.cameras.main.fadeOut(650))
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('ResultScene', { score: this.score, stars, win: true, levelConfig: this.buildLevelConfig() })
+      gameEventBus.emit('level:result', { score: this.score, stars, win: true, levelConfig: this.buildLevelConfig() })
+      this.scene.pause('PlayScene')
     })
   }
 
 
   private buildLevelConfig(): ResultConfig {
-    return { topic: this.topic, difficulty: this.difficulty, levelName: this.levelName, totalQuestions: this.questions.length }
+    return { topic: this.topic, difficulty: this.difficulty, levelName: this.levelName, totalQuestions: this.questions.length, levelOrder: this.levelOrder }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -619,22 +642,23 @@ export class PlayScene extends Phaser.Scene {
   private buildEnemies() {
     this.enemyGroup = this.physics.add.staticGroup()
 
+    // All levels (2+) have enemies on every portal platform. Speed increases per level.
+    // y ≈ platform.y − 30; range = patrol half-width in px.
     type EnemyDef = { x: number; y: number; range: number; speed: number }
+    const ALL_PORTALS = (spd: number): EnemyDef[] => [
+      { x: 284,  y: 426, range: 72, speed: spd      },
+      { x: 604,  y: 386, range: 72, speed: spd + 5  },
+      { x: 904,  y: 426, range: 72, speed: spd + 10 },
+      { x: 1224, y: 362, range: 72, speed: spd + 15 },
+      { x: 1524, y: 402, range: 72, speed: spd + 20 },
+    ]
     const byLevel: Record<number, EnemyDef[]> = {
       1: [],
-      2: [{ x: 284, y: 426, range: 72, speed: 80 }],
-      3: [{ x: 284, y: 426, range: 64, speed: 90 },
-          { x: 604, y: 386, range: 64, speed: 100 }],
-      4: [{ x: 284, y: 426, range: 64, speed: 95 },
-          { x: 604, y: 386, range: 64, speed: 105 },
-          { x: 904, y: 426, range: 64, speed: 115 }],
-      5: [{ x: 284, y: 426, range: 72, speed: 110 },
-          { x: 604, y: 386, range: 72, speed: 120 },
-          { x: 1224, y: 362, range: 72, speed: 130 }],
-      6: [{ x: 284, y: 426, range: 72, speed: 125 },
-          { x: 604, y: 386, range: 72, speed: 135 },
-          { x: 904, y: 426, range: 72, speed: 145 },
-          { x: 1224, y: 362, range: 72, speed: 155 }],
+      2: ALL_PORTALS(70),
+      3: ALL_PORTALS(90),
+      4: ALL_PORTALS(108),
+      5: ALL_PORTALS(124),
+      6: ALL_PORTALS(140),
     }
 
     const defs = byLevel[this.levelOrder] ?? []
@@ -693,7 +717,9 @@ export class PlayScene extends Phaser.Scene {
 
     if (this.lives <= 0) {
       this.time.delayedCall(900, () => {
-        this.scene.start('ResultScene', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        gameEventBus.emit('level:failed', { reason: 'Sin vidas' })
+        gameEventBus.emit('level:result', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        this.scene.pause('PlayScene')
       })
     }
   }
@@ -780,7 +806,9 @@ export class PlayScene extends Phaser.Scene {
 
     if (this.lives <= 0) {
       this.time.delayedCall(900, () => {
-        this.scene.start('ResultScene', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        gameEventBus.emit('level:failed', { reason: 'Sin vidas' })
+        gameEventBus.emit('level:result', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        this.scene.pause('PlayScene')
       })
     }
   }
@@ -866,7 +894,9 @@ export class PlayScene extends Phaser.Scene {
 
     if (this.lives <= 0) {
       this.time.delayedCall(900, () => {
-        this.scene.start('ResultScene', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        gameEventBus.emit('level:failed', { reason: 'Sin vidas' })
+        gameEventBus.emit('level:result', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        this.scene.pause('PlayScene')
       })
     }
   }
@@ -933,7 +963,9 @@ export class PlayScene extends Phaser.Scene {
 
     if (this.lives <= 0) {
       this.time.delayedCall(900, () => {
-        this.scene.start('ResultScene', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        gameEventBus.emit('level:failed', { reason: 'Sin vidas' })
+        gameEventBus.emit('level:result', { score: this.score, stars: 0, win: false, levelConfig: this.buildLevelConfig() })
+        this.scene.pause('PlayScene')
       })
     }
   }

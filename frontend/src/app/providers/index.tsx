@@ -18,7 +18,11 @@ export function Providers({ children }: ProvidersProps) {
         const { data } = await apiClient.get<ApiResponse<User>>(ENDPOINTS.users.me)
         setUser(data.data)
       } catch {
-        logout()
+        // Only clear session if an explicit login hasn't authenticated us in the
+        // meantime (race condition: login can complete while this request is in-flight).
+        if (!useAuthStore.getState().isAuthenticated) {
+          logout()
+        }
       } finally {
         setLoading(false)
       }

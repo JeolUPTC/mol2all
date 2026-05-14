@@ -36,7 +36,7 @@ export class SessionsService {
         const previousProgress = await this.prisma.progress.findUnique({
           where: { userId_levelId: { userId, levelId: previousLevel.id } },
         })
-        if (!previousProgress || previousProgress.status !== 'COMPLETED' || previousProgress.stars < 1) {
+        if (!previousProgress || previousProgress.status !== 'COMPLETED') {
           throw new ForbiddenException('Debes completar el nivel anterior primero')
         }
       }

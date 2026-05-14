@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { gameEventBus } from '../bridge/gameEventBus'
 import type { GameQuestion } from '../services/questions.service'
 
 interface RouletteSceneData {
@@ -149,7 +150,7 @@ export class RouletteScene extends Phaser.Scene {
             this.cameras.main.fadeOut(260)
             this.cameras.main.once('camerafadeoutcomplete', () => {
               this.scene.stop('RouletteScene')
-              this.scene.launch('QuizScene', { question, onAnswer })
+              gameEventBus.emit('quiz:open', { question, onAnswer })
             })
           })
         },
