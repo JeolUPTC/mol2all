@@ -19,6 +19,7 @@ export class Player {
   private touchRight = false
   private touchJump = false
   private touchObjs: Phaser.GameObjects.GameObject[] = []
+  private hasTouch = false
 
   isControlEnabled = true
 
@@ -39,10 +40,21 @@ export class Player {
       }
     }
 
-    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-    if (isTouch) {
+    this.hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    if (this.hasTouch) {
       this.buildTouchControls()
+      // Rebuild on resize so buttons reposition correctly after orientation change.
+      // On Android the layout settles after Phaser initialises, so the first
+      // resize event delivers the definitive dimensions.
+      scene.scale.on('resize', this.onResize, this)
     }
+  }
+
+  private readonly onResize = () => {
+    // Destroy visuals only — keep the resize listener active for future resizes
+    this.touchObjs.forEach((o) => o.destroy())
+    this.touchObjs = []
+    this.buildTouchControls()
   }
 
   private buildTouchControls() {
@@ -88,6 +100,9 @@ export class Player {
   destroyTouchControls() {
     this.touchObjs.forEach((o) => o.destroy())
     this.touchObjs = []
+    if (this.hasTouch) {
+      this.scene.scale.off('resize', this.onResize, this)
+    }
   }
 
   update() {
