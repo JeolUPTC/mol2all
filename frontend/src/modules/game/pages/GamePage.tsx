@@ -31,7 +31,12 @@ export function GamePage() {
   const isPortrait = useIsPortraitMobile()
   const [phaserMounted, setPhaserMounted] = useState(() => !checkIsPortraitMobile())
   useEffect(() => {
-    if (!isPortrait) setPhaserMounted(true)
+    if (!isPortrait) {
+      setPhaserMounted(true)
+      // Fire a synthetic resize so Phaser's Scale Manager re-reads the container
+      // dimensions after the browser finishes the orientation transition.
+      window.dispatchEvent(new Event('resize'))
+    }
   }, [isPortrait])
 
 
@@ -157,7 +162,7 @@ export function GamePage() {
         topic={levelConfig.topic}
         onExit={() => { exitFullscreen(); navigate('/dashboard') }}
       />
-      <div style={{ height: 'calc(100vh - 56px)', width: '100%' }}>
+      <div className="min-h-0 flex-1" style={{ width: '100%' }}>
         {phaserMounted && (
           <PhaserGame
             levelConfig={{ ...levelConfig, questions }}
