@@ -31,13 +31,21 @@ export function GamePage() {
   const isPortrait = useIsPortraitMobile()
   const [phaserMounted, setPhaserMounted] = useState(() => !checkIsPortraitMobile())
   useEffect(() => {
-    if (!isPortrait) {
-      setPhaserMounted(true)
-      // Fire a synthetic resize so Phaser's Scale Manager re-reads the container
-      // dimensions after the browser finishes the orientation transition.
-      window.dispatchEvent(new Event('resize'))
-    }
+    if (!isPortrait) setPhaserMounted(true)
   }, [isPortrait])
+
+  // Canvas height — use window.innerHeight instead of 100vh so the value
+  // updates correctly when the browser address bar appears/disappears or when
+  // the orientation changes. A fixed pixel value also prevents Phaser's
+  // ResizeObserver from entering a layout loop (flex-1 on an unsized flex
+  // parent causes continuous re-measurements).
+  const HUD_H = 56
+  const [canvasH, setCanvasH] = useState(() => window.innerHeight - HUD_H)
+  useEffect(() => {
+    const onResize = () => setCanvasH(window.innerHeight - HUD_H)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
 
   const [gameState, setGameState] = useState<GameState>('loading')
@@ -162,7 +170,7 @@ export function GamePage() {
         topic={levelConfig.topic}
         onExit={() => { exitFullscreen(); navigate('/dashboard') }}
       />
-      <div className="min-h-0 flex-1" style={{ width: '100%' }}>
+      <div style={{ height: canvasH, width: '100%' }}>
         {phaserMounted && (
           <PhaserGame
             levelConfig={{ ...levelConfig, questions }}
