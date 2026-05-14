@@ -5,7 +5,7 @@ import { useGameStore } from '@stores/gameStore'
 import { useUIStore } from '@stores/uiStore'
 import { apiClient } from '@core/api/client'
 import { ENDPOINTS } from '@core/api/endpoints'
-import { PhaserGame, type LevelConfig } from '../PhaserGame'
+import { PhaserGame, type LevelConfig, checkIsPortraitMobile, useIsPortraitMobile } from '../PhaserGame'
 import { sessionsService } from '../services/sessions.service'
 import { levelsService } from '@modules/levels/services/levels.service'
 import { PreGameScreen } from '../components/PreGameScreen'
@@ -25,6 +25,14 @@ export function GamePage() {
 
   const sessionIdRef = useRef<string | null>(null)
   const sessionCompletedRef = useRef(false)
+
+  // Portrait detection — PhaserGame must not mount until we're in landscape.
+  // Once mounted it stays mounted (unmounting a live Phaser canvas causes bugs).
+  const isPortrait = useIsPortraitMobile()
+  const [phaserMounted, setPhaserMounted] = useState(() => !checkIsPortraitMobile())
+  useEffect(() => {
+    if (!isPortrait) setPhaserMounted(true)
+  }, [isPortrait])
 
   const [gameState, setGameState] = useState<GameState>('loading')
   const [levelConfig, setLevelConfig] = useState<LevelConfig | null>(null)
@@ -122,7 +130,9 @@ export function GamePage() {
     )
   }
 
-  // playing — HUD (h-14 = 56px) on top, Phaser fills the rest exactly
+  // playing — HUD (h-14 = 56px) on top, Phaser fills the rest exactly.
+  // PhaserGame is not mounted until the first landscape moment; until then a
+  // full-screen overlay covers everything (HUD included) asking to rotate.
   return (
     <div className="relative flex flex-1 flex-col bg-slate-950" style={{ touchAction: 'none' }}>
       <GameHUD
@@ -131,12 +141,33 @@ export function GamePage() {
         onExit={() => navigate('/dashboard')}
       />
       <div style={{ height: 'calc(100vh - 56px)', width: '100%' }}>
-        <PhaserGame
-          levelConfig={{ ...levelConfig, questions }}
-          onComplete={handleComplete}
-          onRetry={handleRetry}
-        />
+        {phaserMounted && (
+          <PhaserGame
+            levelConfig={{ ...levelConfig, questions }}
+            onComplete={handleComplete}
+            onRetry={handleRetry}
+          />
+        )}
       </div>
+
+      {/* Full-screen portrait guard — covers HUD + canvas */}
+      {isPortrait && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-slate-950 p-8 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-sky-900/40">
+            <svg viewBox="0 0 24 24" className="h-10 w-10 text-sky-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-sky-300">Rota tu dispositivo</p>
+            <p className="mt-2 text-base text-slate-400">
+              El juego está diseñado para pantalla horizontal.
+              <br />
+              Gira tu móvil para jugar.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

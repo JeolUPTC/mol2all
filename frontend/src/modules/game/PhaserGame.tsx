@@ -25,24 +25,19 @@ interface PhaserGameProps {
   onRetry?: (levelConfig: ResultData['levelConfig']) => void
 }
 
-function useIsPortraitMobile() {
-  const check = (): boolean => {
-    const w = window.innerWidth
-    const h = window.innerHeight
-    if (Math.min(w, h) >= 768) return false
-    // Try screen orientation API first (most reliable)
-    if (window.screen?.orientation?.type) {
-      return window.screen.orientation.type.startsWith('portrait')
-    }
-    // matchMedia fallback
-    if (typeof window.matchMedia === 'function') {
-      return window.matchMedia('(orientation: portrait)').matches
-    }
-    return h > w
-  }
-  const [portrait, setPortrait] = useState(check)
+export function checkIsPortraitMobile(): boolean {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  if (Math.min(w, h) >= 768) return false
+  if (window.screen?.orientation?.type) return window.screen.orientation.type.startsWith('portrait')
+  if (typeof window.matchMedia === 'function') return window.matchMedia('(orientation: portrait)').matches
+  return h > w
+}
+
+export function useIsPortraitMobile() {
+  const [portrait, setPortrait] = useState(checkIsPortraitMobile)
   useEffect(() => {
-    const handler = () => setTimeout(() => setPortrait(check()), 80)
+    const handler = () => setTimeout(() => setPortrait(checkIsPortraitMobile()), 80)
     window.addEventListener('resize', handler)
     window.addEventListener('orientationchange', handler)
     return () => {
@@ -135,9 +130,10 @@ export function PhaserGame({ levelConfig, onComplete, onRetry }: PhaserGameProps
     window.dispatchEvent(new CustomEvent('mol2all:game:exit'))
   }
 
-  // Always keep the Phaser canvas mounted — unmounting it while Phaser is running
-  // leaves the game loop attached to a detached canvas and causes scroll-lock bugs.
-  // Instead, overlay the rotate message on top when portrait is detected.
+  // Keep the Phaser canvas always mounted once started — unmounting while Phaser
+  // is running leaves the game loop attached to a detached canvas (scroll-lock bug).
+  // GamePage is responsible for delaying the mount until landscape and for the
+  // full-screen portrait overlay that covers this component.
   return (
     <div className="relative h-full w-full">
       <div
@@ -145,17 +141,6 @@ export function PhaserGame({ levelConfig, onComplete, onRetry }: PhaserGameProps
         className="h-full w-full"
         style={{ touchAction: 'none' }}
       />
-      {isPortrait && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-900/97 p-6 text-center">
-          <span className="text-6xl">🔄</span>
-          <p className="text-2xl font-bold text-sky-300">Rota tu dispositivo</p>
-          <p className="text-base text-slate-400">
-            El juego está diseñado para pantalla horizontal.
-            <br />
-            Gira tu móvil para jugar.
-          </p>
-        </div>
-      )}
       {quizData && !isPortrait && (
         <QuizOverlay
           question={quizData.question}
