@@ -34,6 +34,7 @@ export function GamePage() {
     if (!isPortrait) setPhaserMounted(true)
   }, [isPortrait])
 
+
   const [gameState, setGameState] = useState<GameState>('loading')
   const [levelConfig, setLevelConfig] = useState<LevelConfig | null>(null)
   const [questions, setQuestions] = useState<GameQuestion[]>([])
@@ -69,11 +70,19 @@ export function GamePage() {
     return () => { mounted = false }
   }, [levelId, navigate, setCurrentSession])
 
-  // Called by PreGameScreen when questions are ready and user clicks Jugar
+  // Called by PreGameScreen when questions are ready and user clicks Jugar.
+  // requestFullscreen must be called here — inside the user-gesture handler —
+  // so the browser allows it (hides the address bar on mobile).
   const handlePlay = useCallback((loadedQuestions: GameQuestion[]) => {
     setQuestions(loadedQuestions)
     startGame()
     setGameState('playing')
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    if (isTouch) {
+      type AnyEl = Element & { webkitRequestFullscreen?: () => Promise<void> }
+      const el = document.documentElement as AnyEl
+      ;(el.requestFullscreen ?? el.webkitRequestFullscreen)?.call(el).catch(() => {})
+    }
   }, [startGame])
 
   // Retry: go back to PreGameScreen (PhaserGame unmounts → Phaser destroyed cleanly)
@@ -102,12 +111,20 @@ export function GamePage() {
     [setUser, addToast],
   )
 
+  const exitFullscreen = useCallback(() => {
+    type AnyDoc = Document & { webkitExitFullscreen?: () => Promise<void> }
+    const doc = document as AnyDoc
+    if (doc.fullscreenElement) {
+      ;(doc.exitFullscreen ?? doc.webkitExitFullscreen)?.call(doc).catch(() => {})
+    }
+  }, [])
+
   // ResultScene exit event
   useEffect(() => {
-    const onExit = () => navigate('/dashboard')
+    const onExit = () => { exitFullscreen(); navigate('/dashboard') }
     window.addEventListener('mol2all:game:exit', onExit)
     return () => window.removeEventListener('mol2all:game:exit', onExit)
-  }, [navigate])
+  }, [navigate, exitFullscreen])
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -138,7 +155,7 @@ export function GamePage() {
       <GameHUD
         levelName={levelConfig.levelName}
         topic={levelConfig.topic}
-        onExit={() => navigate('/dashboard')}
+        onExit={() => { exitFullscreen(); navigate('/dashboard') }}
       />
       <div style={{ height: 'calc(100vh - 56px)', width: '100%' }}>
         {phaserMounted && (
